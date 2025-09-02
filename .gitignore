@@ -1,0 +1,111 @@
+# Compiled Object files
+*.o
+*.obj
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+ecscope_app
+ecscope_app.exe
+
+# Build directories
+build/
+cmake-build-*/
+.cmake/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDE files
+.vscode/
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+
+# CLion
+.idea/
+
+# Code::Blocks
+*.cbp
+*.depend
+*.layout
+
+# Temporary files
+*~
+*.swp
+*.tmp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Dependencies
+external/imgui/
+external/SDL2/
+external/catch2/
+
+# Backup files
+*.bak
+*.backup
+
+# Profiling data
+*.prof
+callgrind.out.*
+massif.out.*
+cachegrind.out.*
+
+# Static analysis
+*.scan-build/
+
+# Documentation generated
+docs/html/
+docs/latex/
+
+# Core dumps
+core
+core.*
+
+# Debug information
+*.dSYM/
+
+# Address Sanitizer
+*.asan
+
+# Coverage files
+*.gcov
+*.gcda
+*.gcno
+lcov.info
+coverage/
+
+# Doxygen documentation
+docs/generated/
+
+# Performance test results
+benchmark_results/
+perf_*.txt
