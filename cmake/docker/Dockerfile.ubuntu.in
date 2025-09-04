@@ -1,0 +1,132 @@
+# ECScope Development Environment - Ubuntu
+FROM ubuntu:22.04
+
+# Metadata
+LABEL maintainer="ECScope Team"
+LABEL version="@PROJECT_VERSION@"
+LABEL description="ECScope Educational ECS Engine - Ubuntu Development Environment"
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    # Build essentials
+    build-essential \
+    cmake \
+    ninja-build \
+    ccache \
+    pkg-config \
+    git \
+    curl \
+    wget \
+    # Compilers
+    gcc-12 \
+    g++-12 \
+    clang-15 \
+    clang++-15 \
+    # Libraries for graphics
+    libsdl2-dev \
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
+    libvulkan-dev \
+    vulkan-tools \
+    # Libraries for physics
+    libbullet-dev \
+    # Libraries for audio
+    libopenal-dev \
+    libvorbis-dev \
+    libogg-dev \
+    # Libraries for scripting
+    python3-dev \
+    python3-pip \
+    lua5.3-dev \
+    libluajit-5.1-dev \
+    # Libraries for system monitoring
+    libsensors-dev \
+    libnuma-dev \
+    # Development tools
+    gdb \
+    valgrind \
+    perf-tools-unstable \
+    strace \
+    htop \
+    # Documentation tools
+    doxygen \
+    graphviz \
+    # Cleanup
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up modern compilers as default
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100
+
+# Install modern CMake (Ubuntu 22.04 has 3.22, but let's ensure latest)
+RUN pip3 install cmake --upgrade
+
+# Set up ccache
+ENV CCACHE_DIR=/ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN mkdir -p $CCACHE_DIR && chmod 777 $CCACHE_DIR
+
+# Create development user
+RUN useradd -m -s /bin/bash developer && \
+    echo "developer:developer" | chpasswd && \
+    usermod -aG sudo developer
+
+# Set up workspace
+WORKDIR /workspace
+RUN chown -R developer:developer /workspace
+
+# Switch to development user
+USER developer
+
+# Install Python packages for development
+RUN pip3 install --user \
+    conan \
+    cpplint \
+    cppcheck-junit \
+    pytest \
+    numpy \
+    matplotlib
+
+# Set environment variables
+ENV PATH="/home/developer/.local/bin:$PATH"
+ENV CONAN_USER_HOME="/home/developer"
+
+# Create build script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Building ECScope..."\n\
+cd /workspace\n\
+mkdir -p build\n\
+cd build\n\
+cmake .. \\\n\
+    -G Ninja \\\n\
+    -DCMAKE_BUILD_TYPE=Release \\\n\
+    -DECSCOPE_ENABLE_GRAPHICS=ON \\\n\
+    -DECSCOPE_ENABLE_SIMD=ON \\\n\
+    -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON \\\n\
+    -DECSCOPE_ENABLE_JOB_SYSTEM=ON \\\n\
+    -DECSCOPE_ENABLE_3D_PHYSICS=ON \\\n\
+    -DECSCOPE_ENABLE_SCRIPTING=ON \\\n\
+    -DECSCOPE_BUILD_TESTS=ON \\\n\
+    -DECSCOPE_BUILD_BENCHMARKS=ON \\\n\
+    -DECSCOPE_BUILD_EXAMPLES=ON\n\
+ninja\n\
+echo "Build complete! Running tests..."\n\
+ctest --output-on-failure\n\
+echo "All tests passed!"' > /home/developer/build.sh && \
+chmod +x /home/developer/build.sh
+
+# Default command
+CMD ["/bin/bash"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD gcc --version && cmake --version || exit 1

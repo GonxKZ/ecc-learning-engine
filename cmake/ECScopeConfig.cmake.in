@@ -1,0 +1,137 @@
+# ECScope CMake Configuration File
+# This file is used by find_package(ECScope) to locate and configure ECScope
+
+@PACKAGE_INIT@
+
+# ECScope version and build information
+set(ECScope_VERSION "@PROJECT_VERSION@")
+set(ECScope_VERSION_MAJOR "@PROJECT_VERSION_MAJOR@")
+set(ECScope_VERSION_MINOR "@PROJECT_VERSION_MINOR@")
+set(ECScope_VERSION_PATCH "@PROJECT_VERSION_PATCH@")
+
+# Feature configuration
+set(ECScope_HAS_GRAPHICS @ECSCOPE_HAS_GRAPHICS@)
+set(ECScope_HAS_SIMD @ECSCOPE_ENABLE_SIMD@)
+set(ECScope_HAS_JOB_SYSTEM @ECSCOPE_ENABLE_JOB_SYSTEM@)
+set(ECScope_HAS_3D_PHYSICS @ECSCOPE_ENABLE_3D_PHYSICS@)
+set(ECScope_HAS_SCRIPTING @ECSCOPE_HAS_SCRIPTING@)
+set(ECScope_HAS_HARDWARE_DETECTION @ECSCOPE_ENABLE_HARDWARE_DETECTION@)
+set(ECScope_HAS_VULKAN @ECSCOPE_HAS_VULKAN@)
+set(ECScope_HAS_OPENGL @ECSCOPE_HAS_OPENGL@)
+set(ECScope_HAS_PYTHON @ECSCOPE_HAS_PYTHON@)
+set(ECScope_HAS_LUA @ECSCOPE_HAS_LUA@)
+set(ECScope_HAS_LUAJIT @ECSCOPE_HAS_LUAJIT@)
+set(ECScope_EDUCATIONAL_MODE @ECSCOPE_EDUCATIONAL_MODE@)
+
+# Platform information
+set(ECScope_PLATFORM "@CMAKE_SYSTEM_NAME@")
+set(ECScope_ARCHITECTURE "@CMAKE_SYSTEM_PROCESSOR@")
+set(ECScope_COMPILER_ID "@CMAKE_CXX_COMPILER_ID@")
+set(ECScope_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
+
+# Paths
+set_and_check(ECScope_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
+set_and_check(ECScope_LIBRARY_DIR "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+
+# Include target definitions
+include("${CMAKE_CURRENT_LIST_DIR}/ECScopeTargets.cmake")
+
+# Dependency requirements
+include(CMakeFindDependencyMacro)
+
+# Required dependencies
+if(ECScope_HAS_JOB_SYSTEM)
+    find_dependency(Threads REQUIRED)
+endif()
+
+# Optional graphics dependencies
+if(ECScope_HAS_GRAPHICS)
+    find_dependency(SDL2 QUIET)
+    find_dependency(OpenGL QUIET)
+    if(ECScope_HAS_VULKAN)
+        find_dependency(Vulkan QUIET)
+    endif()
+endif()
+
+# Scripting dependencies
+if(ECScope_HAS_PYTHON)
+    find_dependency(Python3 COMPONENTS Interpreter Development QUIET)
+endif()
+
+if(ECScope_HAS_LUA OR ECScope_HAS_LUAJIT)
+    find_dependency(Lua QUIET)
+endif()
+
+# Physics dependencies
+if(ECScope_HAS_3D_PHYSICS)
+    find_dependency(Bullet QUIET)
+endif()
+
+# Platform-specific dependencies
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND ECScope_HAS_HARDWARE_DETECTION)
+    find_library(NUMA_LIBRARY numa QUIET)
+    find_library(SENSORS_LIB sensors QUIET)
+endif()
+
+# Verify that all required components are available
+check_required_components(ECScope)
+
+# Helper function to check ECScope features
+function(ecscope_check_feature feature_name)
+    if(NOT ECScope_HAS_${feature_name})
+        message(FATAL_ERROR "ECScope was built without ${feature_name} support, but it is required by your project")
+    endif()
+endfunction()
+
+# Helper function to get ECScope configuration info
+function(ecscope_print_info)
+    message(STATUS "ECScope Configuration:")
+    message(STATUS "  Version: ${ECScope_VERSION}")
+    message(STATUS "  Platform: ${ECScope_PLATFORM} (${ECScope_ARCHITECTURE})")
+    message(STATUS "  Compiler: ${ECScope_COMPILER_ID}")
+    message(STATUS "  Build Type: ${ECScope_BUILD_TYPE}")
+    message(STATUS "  Features:")
+    message(STATUS "    Graphics: ${ECScope_HAS_GRAPHICS}")
+    message(STATUS "    SIMD: ${ECScope_HAS_SIMD}")
+    message(STATUS "    Job System: ${ECScope_HAS_JOB_SYSTEM}")
+    message(STATUS "    3D Physics: ${ECScope_HAS_3D_PHYSICS}")
+    message(STATUS "    Scripting: ${ECScope_HAS_SCRIPTING}")
+    message(STATUS "    Hardware Detection: ${ECScope_HAS_HARDWARE_DETECTION}")
+    message(STATUS "    Educational Mode: ${ECScope_EDUCATIONAL_MODE}")
+    if(ECScope_HAS_GRAPHICS)
+        message(STATUS "    Graphics APIs: OpenGL=${ECScope_HAS_OPENGL} Vulkan=${ECScope_HAS_VULKAN}")
+    endif()
+    if(ECScope_HAS_SCRIPTING)
+        message(STATUS "    Scripting Languages: Python=${ECScope_HAS_PYTHON} Lua=${ECScope_HAS_LUA} LuaJIT=${ECScope_HAS_LUAJIT}")
+    endif()
+endfunction()
+
+# Print configuration if requested
+if(ECScope_FIND_QUIETLY)
+    # Don't print anything if find_package was called with QUIET
+elseif(NOT ECScope_FIND_REQUIRED)
+    # Optional find, print brief info
+    message(STATUS "Found ECScope ${ECScope_VERSION}")
+else()
+    # Required find, print full info
+    ecscope_print_info()
+endif()
+
+# Set legacy variables for compatibility
+set(ECSCOPE_FOUND TRUE)
+set(ECSCOPE_VERSION ${ECScope_VERSION})
+set(ECSCOPE_INCLUDE_DIRS ${ECScope_INCLUDE_DIR})
+set(ECSCOPE_LIBRARIES ECScope::ecscope)
+
+# Usage example in comments:
+#
+# find_package(ECScope REQUIRED COMPONENTS Graphics JobSystem)
+# 
+# # Check specific features if needed
+# ecscope_check_feature(GRAPHICS)
+# ecscope_check_feature(SIMD)
+# 
+# target_link_libraries(my_target PRIVATE ECScope::ecscope)
+#
+# # Print configuration information
+# ecscope_print_info()

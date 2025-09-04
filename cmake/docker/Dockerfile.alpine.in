@@ -1,0 +1,85 @@
+# ECScope Minimal Environment - Alpine Linux
+FROM alpine:3.18
+
+# Metadata
+LABEL maintainer="ECScope Team"
+LABEL version="@PROJECT_VERSION@"
+LABEL description="ECScope Educational ECS Engine - Minimal Alpine Environment"
+
+# Install build dependencies
+RUN apk add --no-cache \
+    # Build essentials
+    build-base \
+    cmake \
+    ninja \
+    ccache \
+    pkgconfig \
+    git \
+    curl \
+    # Compilers
+    gcc \
+    g++ \
+    clang \
+    # Libraries
+    sdl2-dev \
+    mesa-dev \
+    vulkan-headers \
+    vulkan-loader-dev \
+    # System libraries
+    linux-headers \
+    musl-dev \
+    # Development tools
+    gdb \
+    valgrind \
+    # Python for scripting
+    python3-dev \
+    py3-pip \
+    # Lua for scripting
+    lua5.3-dev \
+    luajit-dev
+
+# Set up ccache
+ENV CCACHE_DIR=/ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN mkdir -p $CCACHE_DIR && chmod 777 $CCACHE_DIR
+
+# Create development user
+RUN adduser -D -s /bin/sh developer
+
+# Set up workspace
+WORKDIR /workspace
+RUN chown -R developer:developer /workspace
+
+# Switch to development user
+USER developer
+
+# Create minimal build script
+RUN echo '#!/bin/sh\n\
+set -e\n\
+echo "Building ECScope (minimal)..."\n\
+cd /workspace\n\
+mkdir -p build\n\
+cd build\n\
+cmake .. \\\n\
+    -G Ninja \\\n\
+    -DCMAKE_BUILD_TYPE=MinSizeRel \\\n\
+    -DECSCOPE_ENABLE_GRAPHICS=OFF \\\n\
+    -DECSCOPE_ENABLE_SIMD=ON \\\n\
+    -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON \\\n\
+    -DECSCOPE_ENABLE_JOB_SYSTEM=ON \\\n\
+    -DECSCOPE_ENABLE_3D_PHYSICS=OFF \\\n\
+    -DECSCOPE_ENABLE_SCRIPTING=OFF \\\n\
+    -DECSCOPE_BUILD_TESTS=ON \\\n\
+    -DECSCOPE_BUILD_BENCHMARKS=OFF \\\n\
+    -DECSCOPE_BUILD_EXAMPLES=OFF\n\
+ninja\n\
+echo "Minimal build complete!"' > /home/developer/build.sh && \
+chmod +x /home/developer/build.sh
+
+# Default command
+CMD ["/bin/sh"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD gcc --version && cmake --version || exit 1

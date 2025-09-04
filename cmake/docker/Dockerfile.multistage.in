@@ -1,0 +1,270 @@
+# ECScope Multi-Stage Production Build
+# This Dockerfile creates both development and production images
+
+# =============================================================================
+# Build Stage - Full Development Environment
+# =============================================================================
+FROM ubuntu:22.04 AS builder
+
+# Metadata
+LABEL stage="builder"
+LABEL version="@PROJECT_VERSION@"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    ccache \
+    pkg-config \
+    git \
+    gcc-12 \
+    g++-12 \
+    clang-15 \
+    libsdl2-dev \
+    libgl1-mesa-dev \
+    libvulkan-dev \
+    libbullet-dev \
+    python3-dev \
+    libluajit-5.1-dev \
+    libsensors-dev \
+    libnuma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up modern compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+
+# Set up ccache
+ENV CCACHE_DIR=/ccache
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
+RUN mkdir -p $CCACHE_DIR
+
+# Copy source code
+WORKDIR /src
+COPY . .
+
+# Build ECScope with full optimizations
+RUN mkdir -p build && cd build && \
+    cmake .. \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DECSCOPE_ENABLE_GRAPHICS=ON \
+        -DECSCOPE_ENABLE_SIMD=ON \
+        -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON \
+        -DECSCOPE_ENABLE_LTO=ON \
+        -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+        -DECSCOPE_ENABLE_3D_PHYSICS=ON \
+        -DECSCOPE_ENABLE_SCRIPTING=ON \
+        -DECSCOPE_BUILD_TESTS=ON \
+        -DECSCOPE_BUILD_BENCHMARKS=ON \
+        -DECSCOPE_BUILD_EXAMPLES=ON \
+        -DECSCOPE_ENABLE_UNITY_BUILD=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    ninja && \
+    ninja install
+
+# Run tests to ensure build quality
+RUN cd build && ctest --output-on-failure
+
+# =============================================================================
+# Runtime Stage - Minimal Production Image
+# =============================================================================
+FROM ubuntu:22.04 AS runtime
+
+# Metadata
+LABEL maintainer="ECScope Team"
+LABEL version="@PROJECT_VERSION@"
+LABEL description="ECScope Educational ECS Engine - Production Runtime"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    # Graphics libraries
+    libsdl2-2.0-0 \
+    libgl1-mesa-glx \
+    libvulkan1 \
+    # Physics libraries
+    libbullet3.06 \
+    # Scripting runtimes
+    python3 \
+    libluajit-5.1-2 \
+    # System libraries
+    libsensors5 \
+    libnuma1 \
+    # Cleanup
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy built binaries and libraries from builder stage
+COPY --from=builder /usr/local/bin/ecscope* /usr/local/bin/
+COPY --from=builder /usr/local/lib/libecscope* /usr/local/lib/
+COPY --from=builder /usr/local/include/ecscope /usr/local/include/ecscope
+COPY --from=builder /src/examples /usr/local/share/ecscope/examples
+COPY --from=builder /src/docs /usr/local/share/ecscope/docs
+
+# Create runtime user
+RUN useradd -m -s /bin/bash ecscope
+
+# Set up runtime environment
+WORKDIR /home/ecscope
+USER ecscope
+
+# Create convenience scripts
+RUN echo '#!/bin/bash\n\
+echo "ECScope Educational ECS Engine v@PROJECT_VERSION@"\n\
+echo "Available applications:"\n\
+ls -1 /usr/local/bin/ecscope* | sed "s|/usr/local/bin/||g" | sed "s/^/  - /"\n\
+echo ""\n\
+echo "Examples available in: /usr/local/share/ecscope/examples"\n\
+echo "Documentation: /usr/local/share/ecscope/docs"\n\
+echo ""\n\
+echo "Run with: ecscope_app [options]"' > info.sh && chmod +x info.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD ecscope_app --version || exit 1
+
+# Default command
+CMD ["./info.sh"]
+
+# =============================================================================
+# Development Stage - Full Development Environment
+# =============================================================================
+FROM builder AS development
+
+# Additional development tools
+RUN apt-get update && apt-get install -y \
+    gdb \
+    valgrind \
+    perf-tools-unstable \
+    strace \
+    htop \
+    doxygen \
+    graphviz \
+    vim \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create development user
+RUN useradd -m -s /bin/bash developer && \
+    echo "developer:developer" | chpasswd && \
+    usermod -aG sudo developer
+
+# Set up development workspace
+WORKDIR /workspace
+RUN chown -R developer:developer /workspace
+USER developer
+
+# Install Python development packages
+RUN python3 -m pip install --user \
+    conan \
+    cpplint \
+    pytest \
+    numpy \
+    matplotlib
+
+ENV PATH="/home/developer/.local/bin:$PATH"
+
+# Create comprehensive development script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "ECScope Development Environment v@PROJECT_VERSION@"\n\
+echo "======================================"\n\
+echo ""\n\
+function show_help() {\n\
+    echo "Usage: $0 [command]"\n\
+    echo ""\n\
+    echo "Commands:"\n\
+    echo "  build     - Build ECScope with full features"\n\
+    echo "  test      - Run all tests"\n\
+    echo "  benchmark - Run performance benchmarks"\n\
+    echo "  debug     - Build with debug symbols"\n\
+    echo "  clean     - Clean build directory"\n\
+    echo "  help      - Show this help"\n\
+    echo ""\n\
+}\n\
+\n\
+function build_ecscope() {\n\
+    echo "Building ECScope..."\n\
+    mkdir -p build && cd build\n\
+    cmake .. \\\n\
+        -G Ninja \\\n\
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-Release} \\\n\
+        -DECSCOPE_ENABLE_GRAPHICS=ON \\\n\
+        -DECSCOPE_ENABLE_SIMD=ON \\\n\
+        -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON \\\n\
+        -DECSCOPE_ENABLE_JOB_SYSTEM=ON \\\n\
+        -DECSCOPE_ENABLE_3D_PHYSICS=ON \\\n\
+        -DECSCOPE_ENABLE_SCRIPTING=ON \\\n\
+        -DECSCOPE_BUILD_TESTS=ON \\\n\
+        -DECSCOPE_BUILD_BENCHMARKS=ON \\\n\
+        -DECSCOPE_BUILD_EXAMPLES=ON\n\
+    ninja\n\
+    echo "Build complete!"\n\
+}\n\
+\n\
+case "${1:-build}" in\n\
+    build) build_ecscope ;;\n\
+    test) cd build && ctest --output-on-failure ;;\n\
+    benchmark) cd build && ./ecscope_rendering_benchmarks ;;\n\
+    debug) BUILD_TYPE=Debug build_ecscope ;;\n\
+    clean) rm -rf build ;;\n\
+    help) show_help ;;\n\
+    *) echo "Unknown command: $1"; show_help; exit 1 ;;\n\
+esac' > /home/developer/dev.sh && chmod +x /home/developer/dev.sh
+
+# Default command for development
+CMD ["/home/developer/dev.sh"]
+
+# =============================================================================
+# Testing Stage - Continuous Integration Environment
+# =============================================================================
+FROM builder AS testing
+
+# Install testing and analysis tools
+RUN apt-get update && apt-get install -y \
+    lcov \
+    gcovr \
+    cppcheck \
+    clang-tidy-15 \
+    iwyu \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up testing environment
+WORKDIR /testing
+COPY . .
+
+# Build with coverage and analysis
+RUN mkdir -p build-coverage && cd build-coverage && \
+    cmake .. \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+        -DECSCOPE_ENABLE_SANITIZERS=ON \
+        -DECSCOPE_BUILD_TESTS=ON \
+        -DECSCOPE_BUILD_BENCHMARKS=OFF && \
+    ninja
+
+# Create testing script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Running ECScope test suite..."\n\
+cd /testing/build-coverage\n\
+\n\
+# Run tests with coverage\n\
+ctest --output-on-failure --verbose\n\
+\n\
+# Generate coverage report\n\
+lcov --capture --directory . --output-file coverage.info\n\
+lcov --remove coverage.info "/usr/*" "*/external/*" "*/tests/*" --output-file coverage_filtered.info\n\
+genhtml coverage_filtered.info --output-directory coverage_report\n\
+\n\
+echo "Coverage report generated in coverage_report/index.html"\n\
+echo "Test suite completed successfully!"' > test.sh && chmod +x test.sh
+
+CMD ["./test.sh"]

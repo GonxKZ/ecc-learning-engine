@@ -1,0 +1,159 @@
+# ECScope Docker Compose Configuration
+version: '3.8'
+
+services:
+  # Development environment with full features
+  ecscope-dev:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.multistage.in
+      target: development
+    container_name: ecscope-development
+    volumes:
+      - ../..:/workspace:cached
+      - ccache-dev:/ccache
+      - ~/.gitconfig:/home/developer/.gitconfig:ro
+    environment:
+      - CCACHE_DIR=/ccache
+      - DISPLAY=${DISPLAY}
+    ports:
+      - "8080:8080"  # For web-based tools
+      - "3000:3000"  # For development server
+    networks:
+      - ecscope-network
+    stdin_open: true
+    tty: true
+    
+  # Minimal runtime environment
+  ecscope-runtime:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.multistage.in
+      target: runtime
+    container_name: ecscope-runtime
+    environment:
+      - DISPLAY=${DISPLAY}
+    ports:
+      - "8081:8080"
+    networks:
+      - ecscope-network
+    
+  # Testing and CI environment
+  ecscope-testing:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.multistage.in
+      target: testing
+    container_name: ecscope-testing
+    volumes:
+      - ../..:/testing:ro
+      - ./test-results:/testing/build-coverage/test-results
+    environment:
+      - CI=true
+    networks:
+      - ecscope-network
+      
+  # Alpine minimal build
+  ecscope-alpine:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.alpine.in
+    container_name: ecscope-alpine
+    volumes:
+      - ../..:/workspace:cached
+      - ccache-alpine:/ccache
+    environment:
+      - CCACHE_DIR=/ccache
+    networks:
+      - ecscope-network
+    stdin_open: true
+    tty: true
+    
+  # Documentation generation
+  ecscope-docs:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.ubuntu.in
+    container_name: ecscope-docs
+    volumes:
+      - ../..:/workspace:cached
+      - ./docs-output:/workspace/docs/build
+    command: >
+      bash -c "
+        cd /workspace &&
+        mkdir -p build &&
+        cd build &&
+        cmake .. -DECSCOPE_BUILD_DOCUMENTATION=ON &&
+        make docs &&
+        echo 'Documentation generated in docs-output/'
+      "
+    networks:
+      - ecscope-network
+      
+  # Performance testing environment
+  ecscope-perf:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.ubuntu.in
+    container_name: ecscope-performance
+    volumes:
+      - ../..:/workspace:cached
+      - ./perf-results:/workspace/perf-results
+    privileged: true  # Needed for performance monitoring
+    command: >
+      bash -c "
+        cd /workspace &&
+        ./build.sh &&
+        cd build &&
+        echo 'Running performance benchmarks...' &&
+        ./ecscope_rendering_benchmarks --benchmark_out=/workspace/perf-results/benchmarks.json &&
+        ./ecscope_memory_performance_validation > /workspace/perf-results/memory_validation.txt &&
+        echo 'Performance results saved in perf-results/'
+      "
+    networks:
+      - ecscope-network
+      
+  # Cross-compilation for ARM64
+  ecscope-arm64:
+    build:
+      context: ../..
+      dockerfile: cmake/docker/Dockerfile.ubuntu.in
+    container_name: ecscope-arm64-cross
+    volumes:
+      - ../..:/workspace:cached
+    environment:
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+      - CMAKE_TOOLCHAIN_FILE=/workspace/cmake/toolchains/aarch64-linux-gnu.cmake
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu &&
+        cd /workspace &&
+        mkdir -p build-arm64 &&
+        cd build-arm64 &&
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=/workspace/cmake/toolchains/aarch64-linux-gnu.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_ENABLE_GRAPHICS=OFF \
+          -DECSCOPE_ENABLE_ARM_NEON=ON &&
+        make -j$(nproc) &&
+        echo 'ARM64 cross-compilation complete!'
+      "
+    networks:
+      - ecscope-network
+
+# Named volumes for caching
+volumes:
+  ccache-dev:
+    driver: local
+  ccache-alpine:
+    driver: local
+
+# Custom network
+networks:
+  ecscope-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

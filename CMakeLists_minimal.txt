@@ -1,0 +1,31 @@
+# =============================================================================
+# ECScope - Minimal Build Configuration for Testing
+# =============================================================================
+
+cmake_minimum_required(VERSION 3.22)
+project(ECScope 
+    VERSION 0.1.0
+    DESCRIPTION "Educational ECS Engine with Memory Observatory"
+    LANGUAGES CXX)
+
+# C++20 configuration
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Basic compiler settings
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wall -Wextra -O2 -g)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wall -Wextra -O2 -g)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(/W4 /O2)
+endif()
+
+# Create minimal executable
+add_executable(ecscope_minimal src/app/main_minimal.cpp)
+
+# Success message
+message(STATUS "ECScope minimal build configured successfully!")
+message(STATUS "Building: ecscope_minimal executable")
+message(STATUS "Run with: ./ecscope_minimal")

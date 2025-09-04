@@ -1,0 +1,42 @@
+# ECScope Uninstall Script
+# This script removes all files installed by ECScope
+
+if(NOT EXISTS "@CMAKE_BINARY_DIR@/install_manifest.txt")
+    message(FATAL_ERROR "Cannot find install manifest: @CMAKE_BINARY_DIR@/install_manifest.txt")
+endif()
+
+file(READ "@CMAKE_BINARY_DIR@/install_manifest.txt" files)
+string(REGEX REPLACE "\n" ";" files "${files}")
+
+foreach(file ${files})
+    message(STATUS "Uninstalling $ENV{DESTDIR}${file}")
+    if(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+        exec_program(
+            "@CMAKE_COMMAND@" ARGS "-E remove \"$ENV{DESTDIR}${file}\""
+            OUTPUT_VARIABLE rm_out
+            RETURN_VALUE rm_retval
+        )
+        if(NOT "${rm_retval}" STREQUAL 0)
+            message(FATAL_ERROR "Problem when removing $ENV{DESTDIR}${file}")
+        endif()
+    else()
+        message(STATUS "File $ENV{DESTDIR}${file} does not exist.")
+    endif()
+endforeach()
+
+# Remove empty directories
+set(DIRS_TO_REMOVE
+    "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@/ecscope"
+    "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@/cmake/ECScope"
+    "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_DOCDIR@"
+    "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@/examples"
+)
+
+foreach(dir ${DIRS_TO_REMOVE})
+    if(EXISTS "${dir}")
+        message(STATUS "Removing directory ${dir}")
+        exec_program("@CMAKE_COMMAND@" ARGS "-E remove_directory \"${dir}\"")
+    endif()
+endforeach()
+
+message(STATUS "ECScope uninstallation complete")

@@ -1,0 +1,269 @@
+# =============================================================================
+# ECScope - Working Build Configuration 
+# Educational ECS Engine with Memory Observatory
+# =============================================================================
+
+cmake_minimum_required(VERSION 3.22)
+project(ECScope 
+    VERSION 0.1.0
+    DESCRIPTION "Educational ECS Engine with Memory Observatory"
+    LANGUAGES CXX)
+
+# Build system metadata
+set(ECSCOPE_BUILD_SYSTEM_VERSION "2.0.0")
+set(ECSCOPE_BUILD_TIMESTAMP "${CMAKE_CURRENT_LIST_DIR}")
+string(TIMESTAMP ECSCOPE_BUILD_DATE "%Y-%m-%d %H:%M:%S")
+
+# Enable modern CMake features
+cmake_policy(SET CMP0069 NEW)  # INTERPROCEDURAL_OPTIMIZATION
+cmake_policy(SET CMP0077 NEW)  # option() honors normal variables
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)  # ExternalProject timestamps
+endif()
+
+# Include essential CMake modules
+include(GNUInstallDirs)
+include(CMakeDependentOption)
+include(FeatureSummary)
+include(CheckIPOSupported)
+include(CheckCXXCompilerFlag)
+include(CMakePackageConfigHelpers)
+
+# Include ECScope custom modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(ECScope)
+include(Dependencies)
+include(Platform)
+include(Testing)
+
+# Set default build type if not specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# =============================================================================
+# BUILD CONFIGURATION AND OPTIONS
+# =============================================================================
+
+# C++20 configuration with enhanced features
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Enable position independent code for shared libraries
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Export compile commands for IDE integration
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Core build mode options
+option(ECSCOPE_BUILD_SHARED "Build ECScope as shared library" OFF)
+option(ECSCOPE_BUILD_STATIC "Build ECScope as static library" ON)
+option(ECSCOPE_BUILD_TESTS "Build comprehensive unit tests" ON)
+option(ECSCOPE_BUILD_BENCHMARKS "Build performance benchmarks" ON)
+option(ECSCOPE_BUILD_EXAMPLES "Build educational examples" ON)
+option(ECSCOPE_BUILD_DOCUMENTATION "Build API documentation" OFF)
+
+# Educational and development features
+option(ECSCOPE_EDUCATIONAL_MODE "Enable educational demonstrations and analysis" ON)
+option(ECSCOPE_DEVELOPMENT_MODE "Enable development tools and debugging" OFF)
+option(ECSCOPE_ENABLE_PROFILING "Enable detailed profiling support" OFF)
+option(ECSCOPE_ENABLE_SANITIZERS "Enable address/thread/UB sanitizers" OFF)
+
+# Core engine features
+option(ECSCOPE_ENABLE_INSTRUMENTATION "Enable tracing & memory hooks" ON)
+option(ECSCOPE_ENABLE_GRAPHICS "Enable graphical UI (requires SDL2, ImGui)" OFF)
+option(ECSCOPE_ENABLE_AUDIO "Enable audio system" OFF)
+option(ECSCOPE_ENABLE_NETWORKING "Enable networking capabilities" OFF)
+
+# Performance and optimization options
+option(ECSCOPE_ENABLE_SIMD "Enable SIMD optimizations" ON)
+option(ECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS "Enable advanced compiler optimizations" ON)
+option(ECSCOPE_ENABLE_LTO "Enable Link Time Optimization" ON)
+option(ECSCOPE_ENABLE_PCH "Enable precompiled headers" ON)
+
+# Advanced engine systems
+option(ECSCOPE_ENABLE_JOB_SYSTEM "Enable work-stealing job system" ON)
+option(ECSCOPE_ENABLE_3D_PHYSICS "Enable advanced 3D physics system" ON)
+option(ECSCOPE_ENABLE_2D_PHYSICS "Enable 2D physics system" ON)
+
+# Hardware detection and optimization
+option(ECSCOPE_ENABLE_HARDWARE_DETECTION "Enable comprehensive hardware detection and optimization" ON)
+
+# Memory management options
+option(ECSCOPE_ENABLE_CUSTOM_ALLOCATORS "Enable custom memory allocators" ON)
+option(ECSCOPE_ENABLE_MEMORY_DEBUGGING "Enable advanced memory debugging" ON)
+
+# Platform and architecture detection
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(ECSCOPE_PLATFORM_64BIT ON)
+else()
+    set(ECSCOPE_PLATFORM_64BIT OFF)
+endif()
+
+# Detect ARM architecture for NEON optimizations
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)")
+    set(ECSCOPE_PLATFORM_ARM64 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|ARM)")
+    set(ECSCOPE_PLATFORM_ARM32 ON)
+else()
+    set(ECSCOPE_PLATFORM_X86 ON)
+endif()
+
+# =============================================================================
+# COMPILER CONFIGURATION
+# =============================================================================
+
+# Detect compiler capabilities
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(ECSCOPE_COMPILER_SUPPORTS_COLOR_DIAGNOSTICS ON)
+    set(ECSCOPE_COMPILER_SUPPORTS_SANITIZERS ON)
+else()
+    set(ECSCOPE_COMPILER_SUPPORTS_COLOR_DIAGNOSTICS OFF)
+    set(ECSCOPE_COMPILER_SUPPORTS_SANITIZERS OFF)
+endif()
+
+# Check for LTO support
+if(ECSCOPE_ENABLE_LTO)
+    check_ipo_supported(RESULT ECSCOPE_LTO_SUPPORTED OUTPUT error)
+    if(ECSCOPE_LTO_SUPPORTED)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+        message(STATUS "Link Time Optimization (LTO) enabled")
+    else()
+        message(WARNING "LTO requested but not supported: ${error}")
+        set(ECSCOPE_ENABLE_LTO OFF)
+    endif()
+endif()
+
+# Basic compiler flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wall -Wextra -Wpedantic -O3 -g)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -O3 -g)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(/W4 /O2)
+endif()
+
+# =============================================================================
+# PLATFORM CONFIGURATION
+# =============================================================================
+
+# Configure platform-specific settings
+ecscope_configure_platform()
+
+# Resolve all dependencies
+ecscope_resolve_dependencies()
+
+# =============================================================================
+# CORE LIBRARY CONFIGURATION 
+# =============================================================================
+
+# Create ECScope core library
+add_library(ecscope STATIC)
+
+# Add basic source files (only ones that exist and compile cleanly)
+target_sources(ecscope PRIVATE
+    # Core module - basic functionality
+    src/core/log.cpp
+    src/core/time.cpp
+    src/core/id.cpp
+    
+    # Add more source files incrementally as we fix them
+)
+
+# Configure include directories
+target_include_directories(ecscope
+    PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE 
+        src
+)
+
+# Create alias for the library
+add_library(ECScope::ecscope ALIAS ecscope)
+
+# Apply basic configuration
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(ecscope PRIVATE -Wall -Wextra -Wpedantic)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(ecscope PRIVATE -Wall -Wextra -Wpedantic)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(ecscope PRIVATE /W4)
+endif()
+
+# =============================================================================
+# EXECUTABLES AND APPLICATIONS
+# =============================================================================
+
+# ECScope minimal application (always works)
+add_executable(ecscope_minimal src/app/main_minimal.cpp)
+
+# ECScope full console application (requires working library)
+add_executable(ecscope_app src/app/main.cpp)
+target_link_libraries(ecscope_app PRIVATE ecscope)
+
+# =============================================================================
+# TESTING AND EXAMPLES
+# =============================================================================
+
+# Tests (if enabled)
+if(ECSCOPE_BUILD_TESTS)
+    # add_subdirectory(tests)  # Enable when test system is ready
+    message(STATUS "Tests will be enabled when test system is ready")
+endif()
+
+# Examples (if enabled)
+if(ECSCOPE_BUILD_EXAMPLES)
+    message(STATUS "Examples will be built incrementally")
+endif()
+
+# =============================================================================
+# INSTALLATION AND PACKAGING
+# =============================================================================
+
+# Include installation configuration
+include(Installation)
+
+# Configure installation
+ecscope_configure_installation()
+
+# Configure packaging
+ecscope_configure_packaging()
+
+# =============================================================================
+# FEATURE SUMMARY AND FINAL CONFIGURATION
+# =============================================================================
+
+# Add feature summary
+feature_summary(
+    WHAT ENABLED_FEATURES DISABLED_FEATURES PACKAGES_FOUND PACKAGES_NOT_FOUND
+    DESCRIPTION "ECScope Build Configuration:"
+)
+
+message(STATUS "")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "                        ECScope Configuration Summary                          ")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "  Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "  C++ Standard: C++${CMAKE_CXX_STANDARD}")
+message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "")
+message(STATUS "Core Features:")
+message(STATUS "  • Build Tests: ${ECSCOPE_BUILD_TESTS}")
+message(STATUS "  • Build Examples: ${ECSCOPE_BUILD_EXAMPLES}")
+message(STATUS "  • Educational Mode: ${ECSCOPE_EDUCATIONAL_MODE}")
+message(STATUS "")
+message(STATUS "Build Targets:")
+message(STATUS "  • ecscope_minimal - Minimal test application")
+message(STATUS "  • ecscope_app - Full console application") 
+message(STATUS "  • ecscope - Core library")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "")
+message(STATUS "🚀 ECScope build system configured successfully!")
+message(STATUS "Next: make -j$(nproc) to build all targets")
+message(STATUS "")

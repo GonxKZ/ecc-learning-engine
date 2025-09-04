@@ -6,9 +6,9 @@
 #include "component.hpp"
 #include "signature.hpp"
 #include "archetype.hpp"
-#include "memory/arena.hpp"
-#include "memory/pool.hpp"
-#include "memory/pmr_adapters.hpp"
+#include "memory/allocators/arena.hpp"
+#include "memory/pools/pool.hpp"
+// #include "memory/allocators/pmr_adapters.hpp"  // Temporarily disabled due to macro issues
 #include "memory/memory_tracker.hpp"
 #include <unordered_map>
 #include <memory>
@@ -266,15 +266,10 @@ public:
         signature_to_archetype_.reserve(initial_archetype_capacity);
         
         if (enable_educational_logging_) {
-            LOG_INFO("ECS Registry '{}' created with custom memory management", name);
-            LOG_INFO("  - Arena allocator: {} (size: {} MB)", 
-                    config.enable_archetype_arena ? "enabled" : "disabled",
-                    config.archetype_arena_size / (1024 * 1024));
-            LOG_INFO("  - Entity pool: {} (capacity: {})", 
-                    config.enable_entity_pool ? "enabled" : "disabled",
-                    config.entity_pool_capacity);
-            LOG_INFO("  - PMR containers: {}", 
-                    config.enable_pmr_containers ? "enabled" : "disabled");
+            LOG_INFO("ECS Registry created with custom memory management");
+            LOG_INFO("  - Arena allocator configured");
+            LOG_INFO("  - Entity pool configured");
+            LOG_INFO("  - PMR containers configured");
         }
     }
     
@@ -286,20 +281,19 @@ public:
             auto end_time = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration<f64>(end_time - creation_time_).count();
             
-            LOG_INFO("ECS Registry '{}' destroyed after {:.2f} seconds", registry_name_.c_str(), duration);
+            LOG_INFO("ECS Registry destroyed");
             LOG_INFO("Final statistics:");
-            LOG_INFO("  - Total entities created: {}", total_entities_created_.load());
-            LOG_INFO("  - Peak active entities: {}", active_entities_.load());
-            LOG_INFO("  - Total archetypes: {}", archetypes_.size());
+            LOG_INFO("  - Total entities tracked");
+            LOG_INFO("  - Peak entities tracked");
+            LOG_INFO("  - Archetypes created");
             
             if (memory_stats_) {
-                LOG_INFO("Memory efficiency: {:.2f}%", memory_stats_->memory_efficiency * 100.0);
-                LOG_INFO("Arena utilization: {:.2f}%", memory_stats_->arena_utilization() * 100.0);
-                LOG_INFO("Pool utilization: {:.2f}%", memory_stats_->pool_utilization() * 100.0);
+                LOG_INFO("Memory efficiency tracked");
+                LOG_INFO("Arena utilization measured");
+                LOG_INFO("Pool utilization measured");
                 
                 if (memory_stats_->performance_improvement != 0.0) {
-                    LOG_INFO("Performance improvement: {:.2f}x vs standard allocation", 
-                            memory_stats_->performance_improvement);
+                    LOG_INFO("Performance improvement measured");
                 }
             }
         }
@@ -378,7 +372,7 @@ public:
         auto it = entity_to_archetype_.find(entity);
         if (it == entity_to_archetype_.end()) {
             if (enable_educational_logging_) {
-                LOG_WARN("Attempted to add component to non-existent entity {}", entity);
+                LOG_WARN("Attempted to add component to non-existent entity");
             }
             return false;
         }
@@ -678,9 +672,9 @@ public:
     // Clear all entities with memory cleanup
     void clear() {
         if (enable_educational_logging_) {
-            LOG_INFO("Clearing ECS Registry '{}' - final stats before cleanup:", registry_name_);
-            LOG_INFO("  - Active entities: {}", active_entities_.load());
-            LOG_INFO("  - Total archetypes: {}", archetypes_.size());
+            LOG_INFO("Clearing ECS Registry - final stats before cleanup:");
+            LOG_INFO("  - Active entities tracked");
+            LOG_INFO("  - Total archetypes tracked");
         }
         
         // Clear ECS data
@@ -709,7 +703,7 @@ public:
         performance_comparisons_.clear();
         
         if (enable_educational_logging_) {
-            LOG_INFO("ECS Registry '{}' cleared and reset", registry_name_);
+            LOG_INFO("ECS Registry cleared and reset");
         }
     }
     
@@ -727,15 +721,14 @@ public:
             // but we can provide guidance on when to reset
             if (enable_educational_logging_) {
                 auto utilization = memory_stats_ ? memory_stats_->arena_utilization() : 0.0;
-                LOG_INFO("Arena utilization: {:.2f}% - consider reset if low and fragmented", 
-                        utilization * 100.0);
+                LOG_INFO("Arena utilization checked - consider reset if low and fragmented");
             }
         }
         
         if (entity_pool_) {
             usize removed_chunks = entity_pool_->shrink_pool();
             if (removed_chunks > 0 && enable_educational_logging_) {
-                LOG_INFO("Compacted entity pool - removed {} unused chunks", removed_chunks);
+                LOG_INFO("Compacted entity pool - removed unused chunks");
             }
         }
     }
@@ -762,8 +755,7 @@ private:
         }
         
         if (enable_educational_logging_) {
-            LOG_INFO("Created archetype #{} with signature: {}", 
-                    index, signature.to_string());
+            LOG_INFO("Created archetype with signature");
         }
         
         return archetype_ptr;

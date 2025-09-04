@@ -38,8 +38,8 @@
 #include "core/log.hpp"
 #include "memory/memory_tracker.hpp"
 #include "ecs/registry.hpp"
-#include "physics/physics_world.hpp"
-#include "renderer/renderer_2d.hpp"
+// #include "physics/physics_world.hpp"  // Disabled for minimal build
+// #include "renderer/renderer_2d.hpp"  // Disabled for minimal build
 #include <memory>
 #include <vector>
 #include <string>

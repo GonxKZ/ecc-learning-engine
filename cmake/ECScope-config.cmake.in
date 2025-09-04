@@ -1,0 +1,81 @@
+@PACKAGE_INIT@
+
+# ECScope CMake Configuration File
+# This file provides configuration for the ECScope Educational ECS Engine
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(Threads REQUIRED)
+
+# Platform-specific libraries
+if(WIN32)
+    set(ECSCOPE_PLATFORM_LIBS)
+elseif(UNIX AND NOT APPLE)
+    set(ECSCOPE_PLATFORM_LIBS dl)
+else()
+    set(ECSCOPE_PLATFORM_LIBS)
+endif()
+
+# Optional dependencies based on configuration
+@PACKAGE_DEPENDENCIES@
+
+# Include the exported targets
+include("${CMAKE_CURRENT_LIST_DIR}/ECScope-targets.cmake")
+
+# Set component variables for find_package
+set(ECScope_FOUND TRUE)
+
+# Available components
+set(ECScope_COMPONENTS 
+    Core 
+    Memory 
+    Jobs 
+    Physics 
+    Graphics 
+    UI 
+    Scripting 
+    Performance
+)
+
+# Check for requested components
+foreach(comp ${ECScope_FIND_COMPONENTS})
+    if(TARGET ECScope::ecscope_${comp})
+        set(ECScope_${comp}_FOUND TRUE)
+    else()
+        set(ECScope_${comp}_FOUND FALSE)
+        if(ECScope_FIND_REQUIRED_${comp})
+            message(FATAL_ERROR "ECScope component ${comp} not found")
+        endif()
+    endif()
+endforeach()
+
+# Provide information about available features
+message(STATUS "Found ECScope ${ECScope_VERSION}")
+if(TARGET ECScope::ecscope_graphics)
+    message(STATUS "  Graphics support: Available")
+else()
+    message(STATUS "  Graphics support: Not available")
+endif()
+
+if(TARGET ECScope::ecscope_physics)
+    message(STATUS "  Physics engine: Available")
+else()
+    message(STATUS "  Physics engine: Not available")
+endif()
+
+if(TARGET ECScope::ecscope_jobs)
+    message(STATUS "  Job system: Available")
+else()
+    message(STATUS "  Job system: Not available")
+endif()
+
+if(TARGET ECScope::ecscope_scripting)
+    message(STATUS "  Scripting: Available")
+else()
+    message(STATUS "  Scripting: Not available")
+endif()
+
+# Usage example:
+# find_package(ECScope REQUIRED COMPONENTS Core Memory Physics)
+# target_link_libraries(your_target ECScope::ECScope)

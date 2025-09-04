@@ -1,0 +1,28 @@
+# ECScope pkg-config file
+# For use with pkg-config to find ECScope installation
+
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: ECScope
+Description: @PROJECT_DESCRIPTION@
+Version: @PROJECT_VERSION@
+URL: https://github.com/ecscope/ecscope
+
+# Compiler flags
+Cflags: -I${includedir}
+Libs: -L${libdir} -lecscope
+
+# Private libraries and flags (for static linking)
+Libs.private: @ECSCOPE_PC_PRIVATE_LIBS@
+Requires.private: @ECSCOPE_PC_REQUIRES_PRIVATE@
+
+# Feature flags (can be used in application builds)
+ecscope_has_graphics=@ECSCOPE_HAS_GRAPHICS@
+ecscope_has_simd=@ECSCOPE_ENABLE_SIMD@
+ecscope_has_job_system=@ECSCOPE_ENABLE_JOB_SYSTEM@
+ecscope_has_3d_physics=@ECSCOPE_ENABLE_3D_PHYSICS@
+ecscope_has_scripting=@ECSCOPE_HAS_SCRIPTING@
+ecscope_educational_mode=@ECSCOPE_EDUCATIONAL_MODE@
