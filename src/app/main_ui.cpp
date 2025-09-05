@@ -16,6 +16,9 @@
 #include "ui/panels/panel_memory.hpp"
 #include "ui/panels/panel_stats.hpp"
 
+// Interactive Learning System includes
+#include "learning/interactive_learning_integration.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <thread>
@@ -54,6 +57,16 @@ void handle_events(AppState& state);
 void render_frame(AppState& state, f64 delta_time);
 void render_demo_controls(AppState& state);
 
+// Helper function to get registry as shared pointer for learning integration
+std::shared_ptr<ecs::Registry> get_registry_ptr() {
+    static std::shared_ptr<ecs::Registry> registry_ptr;
+    if (!registry_ptr) {
+        // Create a shared pointer wrapper around the global registry
+        registry_ptr = std::shared_ptr<ecs::Registry>(&get_registry(), [](ecs::Registry*){});
+    }
+    return registry_ptr;
+}
+
 int main() {
     // Welcome message
     LOG_INFO("ECScope v0.1.0 - Educational ECS Engine with UI");
@@ -79,6 +92,9 @@ int main() {
     // Initialize core systems
     performance_profiler::initialize();
     memory_tracker::initialize();
+    
+    // Initialize Interactive Learning System
+    auto& learning_integration = ecscope::learning::get_learning_integration();
     
     // Initialize graphics
     if (!initialize_graphics()) {
@@ -162,6 +178,10 @@ bool initialize_graphics() {
     auto* ecs_inspector = ui.add_panel<ECSInspectorPanel>();
     auto* memory_observer = ui.add_panel<MemoryObserverPanel>();
     auto* stats_panel = ui.add_panel<PerformanceStatsPanel>();
+    
+    // Initialize Interactive Learning System with UI
+    auto& learning_integration = ecscope::learning::get_learning_integration();
+    learning_integration.initialize(ui, get_registry_ptr());
     
     // Configure panels
     ecs_inspector->set_visible(true);
@@ -414,6 +434,37 @@ void render_demo_controls(AppState& state) {
             get_ui_overlay().get_panel("ECS Inspector")->set_visible(true);
             get_ui_overlay().get_panel("Memory Observer")->set_visible(true);
             get_ui_overlay().get_panel("Performance Stats")->set_visible(true);
+        }
+        
+        ImGui::Separator();
+        
+        // Interactive Learning System controls
+        ImGui::Text("🎓 Interactive Learning System:");
+        
+        if (ImGui::Button("Start ECS Tutorial")) {
+            ecscope::learning::learning_integration::quick_start_ecs_tutorial();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Performance Analysis")) {
+            ecscope::learning::learning_integration::quick_start_performance_analysis();
+        }
+        
+        if (ImGui::Button("Debug Practice")) {
+            ecscope::learning::learning_integration::quick_start_debugging_practice();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Take Quiz")) {
+            ecscope::learning::learning_integration::quick_start_adaptive_quiz("ECS Basics");
+        }
+        
+        if (ImGui::Button("Show Learning Panels")) {
+            auto& learning_integration = ecscope::learning::get_learning_integration();
+            learning_integration.show_learning_panels(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Hide Learning Panels")) {
+            auto& learning_integration = ecscope::learning::get_learning_integration();
+            learning_integration.hide_learning_panels();
         }
         
     }

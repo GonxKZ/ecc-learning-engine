@@ -152,6 +152,21 @@ public:
         return (bits_ & other.bits_).any();
     }
     
+    // Calculate overlap count between signatures
+    usize overlap_count(const ComponentSignature& other) const noexcept {
+        return (bits_ & other.bits_).count();
+    }
+    
+    // Check if component ID is present
+    bool has_component_id(usize component_id) const noexcept {
+        return component_id < MAX_COMPONENTS && bits_.test(component_id);
+    }
+    
+    // Get size of bitset (for iteration bounds)
+    static constexpr usize size() noexcept {
+        return MAX_COMPONENTS / 64; // Number of 64-bit words
+    }
+    
     // Hash for use in unordered containers
     struct Hash {
         usize operator()(const ComponentSignature& signature) const noexcept {
@@ -172,7 +187,17 @@ public:
     
     // String representation for debugging
     std::string to_string() const {
-        return bits_.to_string();
+        std::string result = "Signature[";
+        bool first = true;
+        for (usize i = 0; i < MAX_COMPONENTS; ++i) {
+            if (bits_.test(i)) {
+                if (!first) result += ",";
+                result += std::to_string(i);
+                first = false;
+            }
+        }
+        result += "]";
+        return result;
     }
 };
 
