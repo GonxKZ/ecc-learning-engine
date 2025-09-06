@@ -1,0 +1,639 @@
+name: ECScope Comprehensive Testing Suite
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run performance regression tests nightly
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - unit
+        - integration
+        - performance
+        - educational
+      enable_sanitizers:
+        description: 'Enable sanitizers (slower but thorough)'
+        required: false
+        default: false
+        type: boolean
+      performance_baseline:
+        description: 'Create new performance baseline'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  BUILD_TYPE: Release
+  COVERAGE_THRESHOLD: 80
+  PERFORMANCE_REGRESSION_THRESHOLD: 15
+
+jobs:
+  # =============================================================================
+  # Build Matrix - Test across different configurations
+  # =============================================================================
+  
+  build-matrix:
+    name: Build Matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-12]
+        build_type: [Debug, Release]
+        compiler: [gcc, clang, msvc]
+        exclude:
+          - os: windows-2022
+            compiler: gcc
+          - os: windows-2022
+            compiler: clang
+          - os: ubuntu-22.04
+            compiler: msvc
+          - os: macos-12
+            compiler: msvc
+          - os: macos-12
+            compiler: gcc
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/vcpkg
+          ${{ github.workspace }}/build/_deps
+        key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/vcpkg.json') }}
+
+    - name: Install system dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          libsdl2-dev \
+          libgl1-mesa-dev \
+          libgtest-dev \
+          lcov \
+          valgrind \
+          libnuma-dev \
+          portaudio19-dev
+        
+        # Install specific compiler versions
+        if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+          sudo apt-get install -y clang-15 clang++-15
+          echo "CC=clang-15" >> $GITHUB_ENV
+          echo "CXX=clang++-15" >> $GITHUB_ENV
+        elif [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+          sudo apt-get install -y gcc-12 g++-12
+          echo "CC=gcc-12" >> $GITHUB_ENV
+          echo "CXX=g++-12" >> $GITHUB_ENV
+        fi
+
+    - name: Install system dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install cmake ninja sdl2 googletest portaudio
+        
+        if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm)/bin/clang++" >> $GITHUB_ENV
+        fi
+
+    - name: Install system dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        choco install cmake ninja
+        vcpkg install sdl2 gtest portaudio
+
+    - name: Configure sanitizers
+      if: ${{ inputs.enable_sanitizers || matrix.build_type == 'Debug' }}
+      run: |
+        if [[ "${{ runner.os }}" != "Windows" ]]; then
+          echo "ENABLE_ASAN=ON" >> $GITHUB_ENV
+          echo "ENABLE_UBSAN=ON" >> $GITHUB_ENV
+          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            echo "ENABLE_TSAN=ON" >> $GITHUB_ENV
+          fi
+        fi
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_BUILD_EXAMPLES=ON \
+          -DECSCOPE_ENABLE_COVERAGE=ON \
+          -DECSCOPE_ENABLE_ASAN=${ENABLE_ASAN:-OFF} \
+          -DECSCOPE_ENABLE_TSAN=${ENABLE_TSAN:-OFF} \
+          -DECSCOPE_ENABLE_UBSAN=${ENABLE_UBSAN:-OFF} \
+          -DECSCOPE_ENABLE_PHYSICS=ON \
+          -DECSCOPE_ENABLE_GRAPHICS=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+          -DECSCOPE_ENABLE_MEMORY_ANALYSIS=ON \
+          -DECSCOPE_ENABLE_PERFORMANCE_LAB=ON \
+          -DECSCOPE_ENABLE_HARDWARE_DETECTION=ON \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+    - name: Build
+      run: cmake --build build --parallel $(nproc)
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+        path: |
+          build/
+          !build/_deps/
+          !build/CMakeFiles/
+        retention-days: 1
+
+  # =============================================================================
+  # Unit Tests - Fast, focused tests
+  # =============================================================================
+  
+  unit-tests:
+    name: Unit Tests
+    needs: build-matrix
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.test_type == 'all' || inputs.test_type == 'unit' || inputs.test_type == '' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-ubuntu-22.04-gcc-Release
+
+    - name: Run unit tests
+      run: |
+        cd build
+        # Run tests with verbose output for debugging
+        ctest --output-on-failure --parallel $(nproc) -L "unit|fast" -T Test
+        
+        # Generate detailed XML reports
+        ctest --output-on-failure -L "unit|fast" -T Test --output-junit unit_test_results.xml
+
+    - name: Generate coverage report
+      if: matrix.build_type == 'Debug'
+      run: |
+        cd build
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        lcov --remove coverage.info '*/_deps/*' --output-file coverage.info
+        lcov --remove coverage.info '*/tests/*' --output-file coverage.info
+        lcov --list coverage.info
+
+    - name: Upload coverage to Codecov
+      if: matrix.build_type == 'Debug'
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/coverage.info
+        flags: unittests
+        name: unit-tests-coverage
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results
+        path: |
+          build/Testing/
+          build/unit_test_results.xml
+
+  # =============================================================================
+  # Integration Tests - Cross-system functionality
+  # =============================================================================
+  
+  integration-tests:
+    name: Integration Tests
+    needs: build-matrix
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.test_type == 'all' || inputs.test_type == 'integration' || inputs.test_type == '' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-ubuntu-22.04-gcc-Release
+
+    - name: Run integration tests
+      timeout-minutes: 20
+      run: |
+        cd build
+        # Integration tests may take longer and require more resources
+        ctest --output-on-failure --parallel 2 -L "integration" -T Test
+        ctest --output-on-failure -L "integration" -T Test --output-junit integration_test_results.xml
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: |
+          build/Testing/
+          build/integration_test_results.xml
+
+  # =============================================================================
+  # Performance Tests - Regression detection and benchmarking
+  # =============================================================================
+  
+  performance-tests:
+    name: Performance Tests
+    needs: build-matrix
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.test_type == 'all' || inputs.test_type == 'performance' || github.event_name == 'schedule' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-ubuntu-22.04-gcc-Release
+
+    - name: Setup performance testing environment
+      run: |
+        # Set CPU governor to performance for consistent results
+        echo 'GOVERNOR=performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        
+        # Disable CPU frequency scaling
+        sudo cpupower frequency-set --governor performance
+        
+        # Set process priority
+        sudo sysctl kernel.perf_event_paranoid=1
+
+    - name: Download performance baselines
+      uses: actions/cache@v3
+      with:
+        path: test_baselines/
+        key: performance-baselines-${{ github.repository }}-${{ github.ref }}
+        restore-keys: |
+          performance-baselines-${{ github.repository }}-
+          performance-baselines-
+
+    - name: Run performance tests
+      timeout-minutes: 30
+      run: |
+        cd build
+        
+        # Create baselines if requested or don't exist
+        if [[ "${{ inputs.performance_baseline }}" == "true" ]] || [[ ! -d "../test_baselines" ]]; then
+          echo "Creating new performance baselines..."
+          mkdir -p ../test_baselines
+          ctest --output-on-failure -L "performance|baseline" -T Test
+        fi
+        
+        # Run performance regression tests
+        ctest --output-on-failure --parallel 1 -L "performance" -T Test
+        ctest --output-on-failure -L "performance" -T Test --output-junit performance_test_results.xml
+
+    - name: Analyze performance results
+      run: |
+        cd build
+        # Generate performance report
+        python3 ../scripts/generate_performance_report.py \
+          --baseline-dir ../test_baselines \
+          --results-dir Testing/Temporary \
+          --output performance_report.html \
+          --threshold ${{ env.PERFORMANCE_REGRESSION_THRESHOLD }}
+
+    - name: Check for performance regressions
+      run: |
+        cd build
+        # Parse performance results and fail if regressions detected
+        if grep -q "REGRESSION" performance_report.html; then
+          echo "::error::Performance regressions detected!"
+          exit 1
+        fi
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: |
+          build/Testing/
+          build/performance_test_results.xml
+          build/performance_report.html
+          test_baselines/
+
+  # =============================================================================
+  # Educational System Tests - Learning and tutorial validation
+  # =============================================================================
+  
+  educational-tests:
+    name: Educational Tests
+    needs: build-matrix
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.test_type == 'all' || inputs.test_type == 'educational' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-ubuntu-22.04-gcc-Release
+
+    - name: Setup educational test data
+      run: |
+        mkdir -p test_student_data
+        mkdir -p test_analytics_db
+        mkdir -p test_assets
+
+    - name: Run educational system tests
+      timeout-minutes: 15
+      run: |
+        cd build
+        ctest --output-on-failure --parallel 2 -L "educational" -T Test
+        ctest --output-on-failure -L "educational" -T Test --output-junit educational_test_results.xml
+
+    - name: Validate educational content
+      run: |
+        cd build
+        # Run content validation scripts
+        python3 ../scripts/validate_educational_content.py \
+          --content-dir ../educational_content \
+          --output educational_content_report.json
+
+    - name: Upload educational test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: educational-test-results
+        path: |
+          build/Testing/
+          build/educational_test_results.xml
+          build/educational_content_report.json
+
+  # =============================================================================
+  # Memory and Security Tests - Sanitizers and static analysis
+  # =============================================================================
+  
+  memory-security-tests:
+    name: Memory & Security Tests
+    needs: build-matrix
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts (Debug with sanitizers)
+      uses: actions/download-artifact@v3
+      with:
+        name: build-ubuntu-22.04-gcc-Debug
+
+    - name: Run memory tests with AddressSanitizer
+      timeout-minutes: 30
+      run: |
+        cd build
+        export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:check_initialization_order=1"
+        ctest --output-on-failure -L "memory" -T Test
+
+    - name: Run threading tests with ThreadSanitizer
+      timeout-minutes: 30
+      run: |
+        cd build
+        export TSAN_OPTIONS="halt_on_error=1:abort_on_error=1"
+        ctest --output-on-failure -L "threading" -T Test
+
+    - name: Run with Valgrind
+      if: runner.os == 'Linux'
+      timeout-minutes: 45
+      run: |
+        cd build
+        # Run subset of tests under Valgrind (too slow for all tests)
+        ctest --output-on-failure -L "valgrind" -T Test \
+          --overwrite MemoryCheckCommand=valgrind \
+          --overwrite MemoryCheckCommandOptions="--leak-check=full --show-leak-kinds=all --track-origins=yes"
+
+    - name: Static analysis with clang-tidy
+      run: |
+        cd build
+        # Run clang-tidy on main source files
+        find ../src ../include -name "*.cpp" -o -name "*.hpp" | \
+          xargs clang-tidy-15 -p . --config-file=../.clang-tidy
+
+    - name: Upload memory test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: memory-security-test-results
+        path: |
+          build/Testing/
+          build/MemoryChecker.*.log
+
+  # =============================================================================
+  # Cross-Platform Tests - Ensure compatibility
+  # =============================================================================
+  
+  cross-platform-tests:
+    name: Cross-Platform Tests
+    needs: build-matrix
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-12]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-${{ matrix.os }}-${{ matrix.os == 'windows-2022' && 'msvc' || 'gcc' }}-Release
+
+    - name: Run cross-platform tests
+      timeout-minutes: 15
+      run: |
+        cd build
+        # Run platform-specific test suite
+        ctest --output-on-failure -L "platform|cross-platform" -T Test
+
+    - name: Upload cross-platform results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: cross-platform-results-${{ matrix.os }}
+        path: build/Testing/
+
+  # =============================================================================
+  # Generate Comprehensive Report
+  # =============================================================================
+  
+  generate-report:
+    name: Generate Comprehensive Test Report
+    needs: [unit-tests, integration-tests, performance-tests, educational-tests, memory-security-tests]
+    runs-on: ubuntu-22.04
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all test results
+      uses: actions/download-artifact@v3
+
+    - name: Install report dependencies
+      run: |
+        pip install jinja2 matplotlib pandas seaborn lxml
+
+    - name: Generate comprehensive report
+      run: |
+        python3 scripts/generate_comprehensive_report.py \
+          --input-dir . \
+          --output comprehensive_test_report.html \
+          --include-performance \
+          --include-coverage \
+          --include-educational
+
+    - name: Generate badge data
+      run: |
+        python3 scripts/generate_badges.py \
+          --test-results . \
+          --output badges/
+
+    - name: Upload comprehensive report
+      uses: actions/upload-artifact@v3
+      with:
+        name: comprehensive-test-report
+        path: |
+          comprehensive_test_report.html
+          badges/
+
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read test summary
+          let summary = "## ECScope Test Results\n\n";
+          
+          // Add test results summary
+          if (fs.existsSync('test_summary.json')) {
+            const results = JSON.parse(fs.readFileSync('test_summary.json', 'utf8'));
+            summary += `- ✅ Unit Tests: ${results.unit_tests.passed}/${results.unit_tests.total}\n`;
+            summary += `- ✅ Integration Tests: ${results.integration_tests.passed}/${results.integration_tests.total}\n`;
+            summary += `- ✅ Performance Tests: ${results.performance_tests.status}\n`;
+            summary += `- ✅ Educational Tests: ${results.educational_tests.passed}/${results.educational_tests.total}\n`;
+            
+            if (results.coverage) {
+              summary += `- 📊 Code Coverage: ${results.coverage}%\n`;
+            }
+            
+            if (results.performance_regressions > 0) {
+              summary += `\n⚠️ **Warning**: ${results.performance_regressions} performance regressions detected!\n`;
+            }
+          }
+          
+          summary += "\n[View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})";
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });
+
+  # =============================================================================
+  # Deployment Tests - Test in production-like environment
+  # =============================================================================
+  
+  deployment-tests:
+    name: Deployment Tests
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build Docker test environment
+      run: |
+        docker build -t ecscope-test -f Dockerfile.test .
+
+    - name: Run deployment tests
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/workspace ecscope-test \
+          bash -c "cd /workspace && ctest --output-on-failure -L deployment"
+
+    - name: Test installation
+      run: |
+        # Test that ECScope can be installed and used
+        cmake --build build --target install
+        
+        # Create minimal test project
+        mkdir test_installation
+        cd test_installation
+        cmake -B build ../test_project
+        cmake --build build
+
+# =============================================================================
+# Notification and Cleanup
+# =============================================================================
+
+  notify-results:
+    name: Notify Results
+    needs: [generate-report]
+    runs-on: ubuntu-22.04
+    if: always() && (github.event_name == 'schedule' || failure())
+    
+    steps:
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const title = "ECScope Test Suite Failure";
+          const body = `The ECScope comprehensive test suite has failed.
+          
+          **Run ID**: ${{ github.run_id }}
+          **Commit**: ${{ github.sha }}
+          **Branch**: ${{ github.ref }}
+          
+          Please check the [workflow results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['bug', 'testing', 'ci/cd']
+          });
+
+    - name: Notify nightly results
+      if: github.event_name == 'schedule'
+      run: |
+        # Send nightly test results summary
+        echo "Nightly ECScope test results completed"
+        # Add webhook notification or email if configured

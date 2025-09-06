@@ -1,0 +1,656 @@
+name: ECScope Comprehensive Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  # Build configuration
+  CMAKE_BUILD_TYPE: RelWithDebInfo
+  ECSCOPE_BUILD_TESTS: ON
+  ECSCOPE_BUILD_BENCHMARKS: ON
+  ECSCOPE_BUILD_EXAMPLES: ON
+  ECSCOPE_ENABLE_COVERAGE: ON
+
+jobs:
+  # =============================================================================
+  # Unit Tests Matrix
+  # =============================================================================
+  unit-tests:
+    name: Unit Tests (${{ matrix.os }}, ${{ matrix.compiler }})
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler: [gcc, clang, msvc]
+        exclude:
+          - os: windows-latest
+            compiler: gcc
+          - os: windows-latest
+            compiler: clang
+          - os: ubuntu-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: gcc
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: ${{ matrix.compiler }}
+        vcvarsall: ${{ contains(matrix.os, 'windows') }}
+        cmake: true
+        ninja: true
+        ccache: true
+
+    - name: Install Dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libsdl2-dev \
+          libgl1-mesa-dev \
+          libasound2-dev \
+          libpulse-dev \
+          libudev-dev \
+          libgtest-dev \
+          libgmock-dev \
+          valgrind \
+          lcov
+
+    - name: Install Dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install \
+          sdl2 \
+          googletest \
+          llvm \
+          lcov
+
+    - name: Install Dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        vcpkg install sdl2:x64-windows
+        vcpkg install gtest:x64-windows
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+          -DECSCOPE_BUILD_TESTS=${{ env.ECSCOPE_BUILD_TESTS }} \
+          -DECSCOPE_BUILD_BENCHMARKS=${{ env.ECSCOPE_BUILD_BENCHMARKS }} \
+          -DECSCOPE_BUILD_EXAMPLES=${{ env.ECSCOPE_BUILD_EXAMPLES }} \
+          -DECSCOPE_ENABLE_COVERAGE=${{ env.ECSCOPE_ENABLE_COVERAGE }} \
+          -DECSCOPE_ENABLE_GRAPHICS=OFF \
+          -DECSCOPE_ENABLE_PHYSICS=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+          -DECSCOPE_ENABLE_MEMORY_ANALYSIS=ON \
+          -DECSCOPE_ENABLE_PERFORMANCE_LAB=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }} --parallel
+
+    - name: Run Unit Tests
+      run: |
+        cd build
+        ctest --output-on-failure --parallel 4 -L "unit"
+
+    - name: Generate Coverage Report (Linux/macOS)
+      if: matrix.os != 'windows-latest' && matrix.compiler == 'gcc'
+      run: |
+        cd build
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        lcov --remove coverage.info '*/external/*' --output-file coverage.info
+        lcov --remove coverage.info '*/tests/*' --output-file coverage.info
+
+    - name: Upload Coverage to Codecov
+      if: matrix.os != 'windows-latest' && matrix.compiler == 'gcc'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./build/coverage.info
+        flags: unittests
+        name: ${{ matrix.os }}-${{ matrix.compiler }}
+
+  # =============================================================================
+  # Integration Tests
+  # =============================================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: gcc
+        cmake: true
+        ninja: true
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libsdl2-dev \
+          libgl1-mesa-dev \
+          libasound2-dev \
+          libgtest-dev \
+          libgmock-dev
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_GRAPHICS=ON \
+          -DECSCOPE_ENABLE_PHYSICS=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+          -DECSCOPE_ENABLE_MEMORY_ANALYSIS=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }} --parallel
+
+    - name: Run Integration Tests
+      run: |
+        cd build
+        ctest --output-on-failure --parallel 2 -L "integration" --timeout 300
+
+  # =============================================================================
+  # Performance Tests
+  # =============================================================================
+  performance-tests:
+    name: Performance & Regression Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: gcc
+        cmake: true
+        ninja: true
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libsdl2-dev \
+          libgtest-dev \
+          libgmock-dev \
+          perf-tools-unstable
+
+    - name: Configure CMake (Release for Performance)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_ENABLE_PHYSICS=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+          -DECSCOPE_ENABLE_SIMD=ON
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Run Performance Tests
+      run: |
+        cd build
+        ctest --output-on-failure -L "performance" --timeout 600
+
+    - name: Run Benchmarks
+      run: |
+        cd build
+        make run_benchmarks || true
+
+    - name: Upload Performance Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results-${{ github.sha }}
+        path: |
+          build/performance_report.json
+          build/benchmark_results.json
+
+  # =============================================================================
+  # Memory Safety Tests
+  # =============================================================================
+  memory-safety:
+    name: Memory Safety & Threading Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: clang
+        cmake: true
+        ninja: true
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgtest-dev \
+          libgmock-dev \
+          valgrind
+
+    - name: Configure CMake (AddressSanitizer)
+      run: |
+        cmake -B build-asan \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_ASAN=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON
+
+    - name: Build with AddressSanitizer
+      run: cmake --build build-asan --config Debug --parallel
+
+    - name: Run Memory Safety Tests (ASan)
+      run: |
+        cd build-asan
+        ctest --output-on-failure -R "memory|threading" --timeout 300
+      env:
+        ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+
+    - name: Configure CMake (ThreadSanitizer)
+      run: |
+        cmake -B build-tsan \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_TSAN=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON
+
+    - name: Build with ThreadSanitizer
+      run: cmake --build build-tsan --config Debug --parallel
+
+    - name: Run Threading Safety Tests (TSan)
+      run: |
+        cd build-tsan
+        ctest --output-on-failure -R "threading|concurrent" --timeout 300
+      env:
+        TSAN_OPTIONS: halt_on_error=1
+
+    - name: Run Valgrind Tests
+      run: |
+        cd build-asan
+        ctest --output-on-failure -R "memory" -T memcheck || true
+
+  # =============================================================================
+  # Educational System Tests
+  # =============================================================================
+  educational-tests:
+    name: Educational System Validation
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: gcc
+        cmake: true
+        ninja: true
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgtest-dev \
+          libgmock-dev \
+          python3 \
+          python3-pip
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_SCRIPTING=ON \
+          -DECSCOPE_ENABLE_PHYSICS=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }} --parallel
+
+    - name: Run Educational Tests
+      run: |
+        cd build
+        ctest --output-on-failure -R "educational|tutorial" --timeout 180
+
+    - name: Validate Educational Content
+      run: |
+        cd build
+        # Run custom validation scripts for educational content
+        python3 ../scripts/validate_tutorials.py || true
+        python3 ../scripts/check_code_examples.py || true
+
+  # =============================================================================
+  # Cross-Platform Compatibility
+  # =============================================================================
+  cross-platform:
+    name: Cross-Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, windows-2019, windows-2022, macos-11, macos-12]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: ${{ matrix.os == 'windows-2019' && 'msvc' || matrix.os == 'windows-2022' && 'msvc' || 'gcc' }}
+        cmake: true
+        ninja: true
+
+    - name: Configure CMake (Minimal Build)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_EXAMPLES=OFF \
+          -DECSCOPE_ENABLE_GRAPHICS=OFF \
+          -DECSCOPE_ENABLE_SCRIPTING=OFF
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Run Core Tests
+      run: |
+        cd build
+        ctest --output-on-failure -L "core" --timeout 120
+
+  # =============================================================================
+  # Nightly Stress Tests
+  # =============================================================================
+  nightly-stress:
+    name: Nightly Stress Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup C++ Environment
+      uses: aminya/setup-cpp@v1
+      with:
+        compiler: gcc
+        cmake: true
+        ninja: true
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libsdl2-dev \
+          libgtest-dev \
+          libgmock-dev
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_ENABLE_PHYSICS=ON \
+          -DECSCOPE_ENABLE_JOB_SYSTEM=ON \
+          -DECSCOPE_ENABLE_SIMD=ON
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Run Stress Tests
+      run: |
+        cd build
+        ctest --output-on-failure -L "stress" --timeout 1800  # 30 minutes
+        
+    - name: Run Extended Benchmarks
+      run: |
+        cd build
+        make extended_benchmarks || true
+
+    - name: Upload Nightly Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: nightly-results-${{ github.run_number }}
+        path: |
+          build/stress_test_results.json
+          build/extended_benchmark_results.json
+
+  # =============================================================================
+  # Test Result Analysis
+  # =============================================================================
+  analyze-results:
+    name: Analyze Test Results
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, performance-tests, memory-safety, educational-tests]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Analysis Dependencies
+      run: |
+        pip install matplotlib numpy pandas jinja2 requests
+
+    - name: Analyze Test Results
+      run: |
+        python scripts/analyze_test_results.py artifacts/
+        
+    - name: Generate Test Report
+      run: |
+        python scripts/generate_test_report.py \
+          --artifacts artifacts/ \
+          --output test_report.html \
+          --github-sha ${{ github.sha }} \
+          --github-ref ${{ github.ref }}
+
+    - name: Upload Test Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-report-${{ github.sha }}
+        path: test_report.html
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read test summary (would be generated by analysis script)
+          let summary = 'Test execution completed.';
+          try {
+            summary = fs.readFileSync('test_summary.md', 'utf8');
+          } catch (e) {
+            console.log('No test summary found, using default');
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## 🧪 Test Results Summary\n\n' + summary
+          });
+
+  # =============================================================================
+  # Performance Regression Detection
+  # =============================================================================
+  regression-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download Performance Results
+      uses: actions/download-artifact@v3
+      with:
+        name: performance-results-${{ github.sha }}
+        path: current-results
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Dependencies
+      run: pip install numpy scipy matplotlib
+
+    - name: Check for Performance Regressions
+      run: |
+        python scripts/regression_detector.py \
+          --current current-results/performance_report.json \
+          --baseline-branch origin/main \
+          --threshold 15 \
+          --output regression_report.json
+
+    - name: Comment Regression Results
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let regressionData = {};
+          try {
+            regressionData = JSON.parse(fs.readFileSync('regression_report.json', 'utf8'));
+          } catch (e) {
+            console.log('No regression report found');
+            return;
+          }
+          
+          let comment = '## 📈 Performance Regression Analysis\n\n';
+          
+          if (regressionData.regressions && regressionData.regressions.length > 0) {
+            comment += '⚠️ **Performance regressions detected:**\n\n';
+            for (const regression of regressionData.regressions) {
+              comment += `- **${regression.test}**: ${regression.slowdown}% slower\n`;
+            }
+            comment += '\n';
+          } else {
+            comment += '✅ No significant performance regressions detected.\n\n';
+          }
+          
+          if (regressionData.improvements && regressionData.improvements.length > 0) {
+            comment += '🚀 **Performance improvements:**\n\n';
+            for (const improvement of regressionData.improvements) {
+              comment += `- **${improvement.test}**: ${improvement.speedup}% faster\n`;
+            }
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+# =============================================================================
+# Notification and Reporting
+# =============================================================================
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [analyze-results]
+    if: always() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
+
+    steps:
+    - name: Send Discord Notification (Success)
+      if: needs.analyze-results.result == 'success'
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [{
+              "title": "✅ ECScope Tests Passed",
+              "description": "All comprehensive tests completed successfully",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "'${{ github.sha }}'", "inline": true},
+                {"name": "Branch", "value": "'${{ github.ref_name }}'", "inline": true},
+                {"name": "Workflow", "value": "'${{ github.workflow }}'", "inline": true}
+              ],
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
+            }]
+          }' || true
+
+    - name: Send Discord Notification (Failure)
+      if: needs.analyze-results.result == 'failure'
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [{
+              "title": "❌ ECScope Tests Failed",
+              "description": "Some tests failed - please check the results",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "'${{ github.sha }}'", "inline": true},
+                {"name": "Branch", "value": "'${{ github.ref_name }}'", "inline": true},
+                {"name": "Workflow", "value": "'${{ github.workflow }}'", "inline": true}
+              ],
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
+            }]
+          }' || true
