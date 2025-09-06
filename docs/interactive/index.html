@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECScope Interactive Documentation</title>
+    
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.40.0/min/vs/loader.min.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/interactive.css">
+    <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-cubes"></i>
+                <h1>ECScope Interactive Docs</h1>
+            </div>
+            <nav class="nav">
+                <a href="#overview" class="nav-link">Overview</a>
+                <a href="#tutorials" class="nav-link">Tutorials</a>
+                <a href="#api" class="nav-link">API Reference</a>
+                <a href="#examples" class="nav-link">Live Examples</a>
+                <a href="#benchmarks" class="nav-link">Performance Lab</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" class="theme-toggle" title="Toggle Theme">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <div class="search-container">
+                    <input type="text" id="search-input" class="search-input" placeholder="Search documentation...">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>Getting Started</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#quick-start" class="sidebar-link">Quick Start</a></li>
+                        <li><a href="#installation" class="sidebar-link">Installation</a></li>
+                        <li><a href="#first-app" class="sidebar-link">First Application</a></li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Core Concepts</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#ecs-fundamentals" class="sidebar-link">ECS Fundamentals</a></li>
+                        <li><a href="#memory-management" class="sidebar-link">Memory Management</a></li>
+                        <li><a href="#performance-analysis" class="sidebar-link">Performance Analysis</a></li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Interactive Tutorials</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#tutorial-basic-ecs" class="sidebar-link">Basic ECS</a></li>
+                        <li><a href="#tutorial-memory-lab" class="sidebar-link">Memory Lab</a></li>
+                        <li><a href="#tutorial-physics" class="sidebar-link">Physics System</a></li>
+                        <li><a href="#tutorial-rendering" class="sidebar-link">2D Rendering</a></li>
+                        <li><a href="#tutorial-advanced" class="sidebar-link">Advanced Features</a></li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Systems</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#ecs-system" class="sidebar-link">ECS Architecture</a></li>
+                        <li><a href="#physics-system" class="sidebar-link">Physics Engine</a></li>
+                        <li><a href="#rendering-system" class="sidebar-link">Rendering Pipeline</a></li>
+                        <li><a href="#memory-system" class="sidebar-link">Memory Allocators</a></li>
+                        <li><a href="#ui-system" class="sidebar-link">UI & Debug Tools</a></li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>API Reference</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#api-core" class="sidebar-link">Core API</a></li>
+                        <li><a href="#api-ecs" class="sidebar-link">ECS API</a></li>
+                        <li><a href="#api-physics" class="sidebar-link">Physics API</a></li>
+                        <li><a href="#api-rendering" class="sidebar-link">Rendering API</a></li>
+                        <li><a href="#api-memory" class="sidebar-link">Memory API</a></li>
+                    </ul>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Performance</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#benchmarks" class="sidebar-link">Benchmarking</a></li>
+                        <li><a href="#optimization" class="sidebar-link">Optimization Guide</a></li>
+                        <li><a href="#profiling" class="sidebar-link">Profiling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Overview Section -->
+            <section id="overview" class="content-section">
+                <h1 class="section-title">ECScope Interactive Documentation</h1>
+                <div class="intro-banner">
+                    <div class="intro-text">
+                        <h2>Premier Educational ECS Engine</h2>
+                        <p>Welcome to the interactive documentation for ECScope - the most comprehensive educational ECS (Entity-Component-System) engine built in modern C++20. Explore memory management, performance analysis, physics simulation, and advanced game engine architecture through hands-on examples.</p>
+                        
+                        <div class="feature-highlights">
+                            <div class="feature">
+                                <i class="fas fa-cogs"></i>
+                                <h3>Advanced ECS Architecture</h3>
+                                <p>Industry-grade archetype-based storage with SoA optimization</p>
+                            </div>
+                            <div class="feature">
+                                <i class="fas fa-memory"></i>
+                                <h3>Memory Laboratory</h3>
+                                <p>Custom allocators with real-time performance analysis</p>
+                            </div>
+                            <div class="feature">
+                                <i class="fas fa-rocket"></i>
+                                <h3>Production Performance</h3>
+                                <p>1000+ physics bodies, 10,000+ sprites at 60 FPS</p>
+                            </div>
+                            <div class="feature">
+                                <i class="fas fa-chart-line"></i>
+                                <h3>Interactive Learning</h3>
+                                <p>Live code examples with performance visualization</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h2>Get Started</h2>
+                    <div class="action-grid">
+                        <div class="action-card" data-navigate="quick-start">
+                            <i class="fas fa-play"></i>
+                            <h3>Quick Start</h3>
+                            <p>Get ECScope running in 30 seconds</p>
+                        </div>
+                        <div class="action-card" data-navigate="tutorial-basic-ecs">
+                            <i class="fas fa-graduation-cap"></i>
+                            <h3>Interactive Tutorial</h3>
+                            <p>Learn ECS concepts step by step</p>
+                        </div>
+                        <div class="action-card" data-navigate="tutorial-memory-lab">
+                            <i class="fas fa-flask"></i>
+                            <h3>Memory Lab</h3>
+                            <p>Explore memory behavior and optimization</p>
+                        </div>
+                        <div class="action-card" data-navigate="api">
+                            <i class="fas fa-book"></i>
+                            <h3>API Reference</h3>
+                            <p>Complete API documentation</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Start Section -->
+            <section id="quick-start" class="content-section">
+                <h1 class="section-title">Quick Start Guide</h1>
+                
+                <div class="step-container">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Clone and Build</h3>
+                            <div class="code-example">
+                                <div class="code-header">
+                                    <span class="code-lang">bash</span>
+                                    <button class="copy-button" data-copy="git clone https://github.com/your-repo/ecscope.git&#10;cd ecscope && mkdir build && cd build&#10;cmake .. && make">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <pre><code class="language-bash">git clone https://github.com/your-repo/ecscope.git
+cd ecscope && mkdir build && cd build
+cmake .. && make</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Run Memory Laboratory</h3>
+                            <div class="code-example">
+                                <div class="code-header">
+                                    <span class="code-lang">bash</span>
+                                    <button class="copy-button" data-copy="./ecscope_performance_lab_console">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <pre><code class="language-bash">./ecscope_performance_lab_console</code></pre>
+                            </div>
+                            <div class="info-box">
+                                <i class="fas fa-info-circle"></i>
+                                <p>This launches the interactive memory laboratory where you can experiment with different allocation strategies and see their performance impact in real-time.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Launch Full GUI (Optional)</h3>
+                            <div class="code-example">
+                                <div class="code-header">
+                                    <span class="code-lang">bash</span>
+                                    <button class="copy-button" data-copy="# Install SDL2&#10;sudo apt install libsdl2-dev libgl1-mesa-dev  # Ubuntu/Debian&#10;brew install sdl2  # macOS&#10;&#10;# Build with graphics support&#10;cmake -DECSCOPE_ENABLE_GRAPHICS=ON ..&#10;make && ./ecscope_ui">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <pre><code class="language-bash"># Install SDL2
+sudo apt install libsdl2-dev libgl1-mesa-dev  # Ubuntu/Debian
+brew install sdl2  # macOS
+
+# Build with graphics support
+cmake -DECSCOPE_ENABLE_GRAPHICS=ON ..
+make && ./ecscope_ui</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Verification Section -->
+                <div class="verification-section">
+                    <h2>Verify Your Installation</h2>
+                    <div class="verification-grid">
+                        <div class="verification-item">
+                            <div class="verification-check">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="verification-content">
+                                <h3>Memory Lab Running</h3>
+                                <p>You should see interactive memory allocation experiments</p>
+                            </div>
+                        </div>
+                        <div class="verification-item">
+                            <div class="verification-check">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="verification-content">
+                                <h3>Performance Metrics</h3>
+                                <p>Real-time allocation timings and cache behavior analysis</p>
+                            </div>
+                        </div>
+                        <div class="verification-item">
+                            <div class="verification-check">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <div class="verification-content">
+                                <h3>Multiple Executables</h3>
+                                <p>6+ executable programs for different learning scenarios</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Next Steps -->
+                <div class="next-steps">
+                    <h2>What's Next?</h2>
+                    <div class="next-step-cards">
+                        <div class="next-step-card" data-navigate="tutorial-basic-ecs">
+                            <h3>Learn ECS Fundamentals</h3>
+                            <p>Understand entities, components, and systems</p>
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="next-step-card" data-navigate="tutorial-memory-lab">
+                            <h3>Explore Memory Patterns</h3>
+                            <p>Dive into custom allocators and cache behavior</p>
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="next-step-card" data-navigate="benchmarks">
+                            <h3>Run Benchmarks</h3>
+                            <p>Measure and analyze performance characteristics</p>
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Interactive Code Editor -->
+            <div id="interactive-editor" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Interactive C++ Editor</h2>
+                        <button class="modal-close" id="close-editor">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="monaco-editor"></div>
+                        <div class="editor-controls">
+                            <button id="run-code" class="button primary">
+                                <i class="fas fa-play"></i> Run Code
+                            </button>
+                            <button id="save-code" class="button">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                            <button id="load-example" class="button">
+                                <i class="fas fa-folder-open"></i> Load Example
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <div id="execution-output" class="output-panel"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>ECScope</h3>
+                <p>Premier Educational ECS Engine</p>
+                <div class="footer-stats">
+                    <div class="stat">
+                        <span class="stat-number">1000+</span>
+                        <span class="stat-label">Physics Bodies</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">10K+</span>
+                        <span class="stat-label">Rendered Sprites</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">60 FPS</span>
+                        <span class="stat-label">Performance</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Documentation</h3>
+                <ul>
+                    <li><a href="#api">API Reference</a></li>
+                    <li><a href="#tutorials">Tutorials</a></li>
+                    <li><a href="#examples">Examples</a></li>
+                    <li><a href="#benchmarks">Performance Lab</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Resources</h3>
+                <ul>
+                    <li><a href="https://github.com/your-repo/ecscope">GitHub Repository</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                    <li><a href="#contributing">Contributing</a></li>
+                    <li><a href="#community">Community</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Connect</h3>
+                <div class="social-links">
+                    <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-reddit"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <p>&copy; 2024 ECScope Educational ECS Framework. MIT License.</p>
+        </div>
+    </footer>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-cog fa-spin"></i>
+            <p>Loading Interactive Documentation...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="scripts/main.js"></script>
+    <script src="scripts/interactive.js"></script>
+    <script src="scripts/editor.js"></script>
+    <script src="scripts/tutorials.js"></script>
+    <script src="scripts/benchmarks.js"></script>
+    <script src="scripts/search.js"></script>
+</body>
+</html>

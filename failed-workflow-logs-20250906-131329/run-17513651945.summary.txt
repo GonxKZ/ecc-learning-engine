@@ -1,0 +1,37 @@
+Run: 17513651945
+Workflow: ECScope Comprehensive Test Suite
+Commit: d2b03537ce222bc27949f86e689a1a62f452f568
+Date: 2025-09-06T11:01:04Z
+Log file: /mnt/c/Users/Gonzalo/Documents/4to curso/herramientas/entities-cpp2/failed-workflow-logs-20250906-131329/run-17513651945.log
+---- Líneas con errores (heurística) ----
+95:Build Matrix Tests (ubuntu-latest, gcc, Release)	Configure CMake	2025-09-06T11:02:36.0778574Z CMake Error at CMakeLists.txt:171 (target_sources):
+101:Build Matrix Tests (ubuntu-latest, gcc, Release)	Configure CMake	2025-09-06T11:02:36.0805438Z CMake Error at CMakeLists.txt:169 (add_library):
+105:Build Matrix Tests (ubuntu-latest, gcc, Release)	Configure CMake	2025-09-06T11:02:36.0806739Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+106:Build Matrix Tests (ubuntu-latest, gcc, Release)	Configure CMake	2025-09-06T11:02:36.0846247Z ##[error]Process completed with exit code 1.
+202:Build Matrix Tests (ubuntu-latest, gcc, Debug)	Configure CMake	2025-09-06T11:02:34.1525928Z CMake Error at CMakeLists.txt:171 (target_sources):
+208:Build Matrix Tests (ubuntu-latest, gcc, Debug)	Configure CMake	2025-09-06T11:02:34.1550686Z CMake Error at CMakeLists.txt:169 (add_library):
+212:Build Matrix Tests (ubuntu-latest, gcc, Debug)	Configure CMake	2025-09-06T11:02:34.1552004Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+213:Build Matrix Tests (ubuntu-latest, gcc, Debug)	Configure CMake	2025-09-06T11:02:34.1588882Z ##[error]Process completed with exit code 1.
+316:Build Matrix Tests (macos-latest, clang, Release)	Configure CMake	2025-09-06T11:01:52.1543040Z CMake Error at CMakeLists.txt:171 (target_sources):
+322:Build Matrix Tests (macos-latest, clang, Release)	Configure CMake	2025-09-06T11:01:52.1563820Z CMake Error at CMakeLists.txt:169 (add_library):
+326:Build Matrix Tests (macos-latest, clang, Release)	Configure CMake	2025-09-06T11:01:52.1564540Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+327:Build Matrix Tests (macos-latest, clang, Release)	Configure CMake	2025-09-06T11:01:52.1584290Z ##[error]Process completed with exit code 1.
+431:Build Matrix Tests (macos-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:13.7975840Z CMake Error at CMakeLists.txt:171 (target_sources):
+437:Build Matrix Tests (macos-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:13.7999970Z CMake Error at CMakeLists.txt:169 (add_library):
+441:Build Matrix Tests (macos-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:13.8001670Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+442:Build Matrix Tests (macos-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:13.8027710Z ##[error]Process completed with exit code 1.
+515:Build Matrix Tests (windows-latest, msvc, Debug)	Configure CMake	2025-09-06T11:02:25.4115521Z CMake Error: The source directory "/" does not appear to contain CMakeLists.txt.
+524:Build Matrix Tests (windows-latest, msvc, Debug)	Configure CMake	2025-09-06T11:02:26.5261107Z ##[error]Process completed with exit code 1.
+597:Build Matrix Tests (windows-latest, msvc, Release)	Configure CMake	2025-09-06T11:01:54.0564631Z CMake Error: The source directory "/" does not appear to contain CMakeLists.txt.
+606:Build Matrix Tests (windows-latest, msvc, Release)	Configure CMake	2025-09-06T11:01:54.6693762Z ##[error]Process completed with exit code 1.
+709:Build Matrix Tests (ubuntu-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:16.8441563Z CMake Error at CMakeLists.txt:171 (target_sources):
+715:Build Matrix Tests (ubuntu-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:16.8465780Z CMake Error at CMakeLists.txt:169 (add_library):
+719:Build Matrix Tests (ubuntu-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:16.8467178Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+720:Build Matrix Tests (ubuntu-latest, clang, Debug)	Configure CMake	2025-09-06T11:02:16.8504739Z ##[error]Process completed with exit code 1.
+822:Build Matrix Tests (ubuntu-latest, clang, Release)	Configure CMake	2025-09-06T11:04:21.0266467Z CMake Error at CMakeLists.txt:171 (target_sources):
+828:Build Matrix Tests (ubuntu-latest, clang, Release)	Configure CMake	2025-09-06T11:04:21.0290087Z CMake Error at CMakeLists.txt:169 (add_library):
+832:Build Matrix Tests (ubuntu-latest, clang, Release)	Configure CMake	2025-09-06T11:04:21.0291472Z CMake Generate step failed.  Build files cannot be regenerated correctly.
+833:Build Matrix Tests (ubuntu-latest, clang, Release)	Configure CMake	2025-09-06T11:04:21.0328744Z ##[error]Process completed with exit code 1.
+847:Generate Final Test Report	Generate Comprehensive Report	2025-09-06T11:04:29.5211265Z Error: Required Python packages not installed: No module named 'pandas'
+849:Generate Final Test Report	Generate Comprehensive Report	2025-09-06T11:04:29.5281220Z ##[error]Process completed with exit code 1.
+

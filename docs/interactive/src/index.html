@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interactive documentation for ECScope Educational ECS Engine">
+    <meta name="keywords" content="ECS, game engine, C++, education, performance, documentation">
+    <meta name="author" content="ECScope Educational Framework">
+    
+    <title>ECScope Interactive Documentation</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/assets/fonts/fira-code.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    
+    <!-- Stylesheets will be injected by webpack -->
+</head>
+<body>
+    <!-- Loading screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <svg viewBox="0 0 100 100" class="loading-spinner">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="70 30" stroke-dashoffset="0">
+                        <animateTransform attributeName="transform" type="rotate" values="0 50 50;360 50 50" dur="1s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
+            <h1 class="loading-title">ECScope Interactive Documentation</h1>
+            <p class="loading-subtitle">Loading educational ECS engine documentation...</p>
+            <div class="loading-progress">
+                <div class="progress">
+                    <div class="progress-bar" id="loading-progress-bar"></div>
+                </div>
+                <p class="loading-status" id="loading-status">Initializing systems...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main application container -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <!-- Logo and title -->
+                <div class="header-brand">
+                    <img src="/assets/logo.svg" alt="ECScope" class="logo">
+                    <h1 class="brand-title">ECScope</h1>
+                    <span class="brand-subtitle">Interactive Documentation</span>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="header-nav">
+                    <div class="nav-links">
+                        <a href="#/overview" class="nav-link active" data-nav="overview">
+                            <span class="nav-icon">🏠</span>
+                            Overview
+                        </a>
+                        <a href="#/tutorials" class="nav-link" data-nav="tutorials">
+                            <span class="nav-icon">🎓</span>
+                            Tutorials
+                        </a>
+                        <a href="#/api" class="nav-link" data-nav="api">
+                            <span class="nav-icon">📚</span>
+                            API Reference
+                        </a>
+                        <a href="#/examples" class="nav-link" data-nav="examples">
+                            <span class="nav-icon">💻</span>
+                            Examples
+                        </a>
+                        <a href="#/performance" class="nav-link" data-nav="performance">
+                            <span class="nav-icon">⚡</span>
+                            Performance
+                        </a>
+                    </div>
+                </nav>
+                
+                <!-- Header actions -->
+                <div class="header-actions">
+                    <!-- Search -->
+                    <div class="search-bar">
+                        <input 
+                            type="text" 
+                            id="global-search" 
+                            placeholder="Search documentation..." 
+                            class="form-control"
+                            autocomplete="off"
+                        >
+                        <div class="search-results" id="search-results"></div>
+                    </div>
+                    
+                    <!-- Theme toggle -->
+                    <button class="btn btn-ghost" id="theme-toggle" title="Toggle theme">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    
+                    <!-- Settings -->
+                    <button class="btn btn-ghost" id="settings-toggle" title="Settings">
+                        <span class="settings-icon">⚙️</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main layout -->
+        <div class="app-layout">
+            <!-- Sidebar -->
+            <aside class="app-sidebar" id="sidebar">
+                <!-- Sidebar header -->
+                <div class="sidebar-header">
+                    <h3>Navigation</h3>
+                    <button class="btn btn-ghost sidebar-toggle" id="sidebar-collapse">
+                        <span>◀</span>
+                    </button>
+                </div>
+                
+                <!-- Table of contents -->
+                <div class="sidebar-content">
+                    <div class="toc-container" id="table-of-contents">
+                        <!-- ToC will be dynamically generated -->
+                    </div>
+                    
+                    <!-- Learning progress -->
+                    <div class="learning-progress" id="learning-progress">
+                        <h4>Learning Progress</h4>
+                        <div class="progress-items">
+                            <!-- Progress items will be dynamically generated -->
+                        </div>
+                    </div>
+                    
+                    <!-- Quick actions -->
+                    <div class="quick-actions">
+                        <h4>Quick Actions</h4>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline" id="reset-progress">
+                                Reset Progress
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="export-notes">
+                                Export Notes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- Main content -->
+            <main class="app-main" id="main-content">
+                <!-- Content will be dynamically loaded here -->
+                <div class="main-content-placeholder">
+                    <div class="placeholder-content">
+                        <h2>Welcome to ECScope Interactive Documentation</h2>
+                        <p>Select a section from the navigation to get started.</p>
+                    </div>
+                </div>
+            </main>
+            
+            <!-- Right sidebar (performance monitor, tools) -->
+            <aside class="app-tools" id="tools-sidebar">
+                <!-- Performance monitor -->
+                <div class="tool-panel" id="performance-monitor">
+                    <div class="panel-header">
+                        <h4>Performance Monitor</h4>
+                        <button class="btn btn-ghost btn-sm panel-toggle">−</button>
+                    </div>
+                    <div class="panel-content">
+                        <!-- Performance metrics will be displayed here -->
+                        <div class="metrics-container">
+                            <div class="metric-card">
+                                <div class="metric-label">Memory Usage</div>
+                                <div class="metric-value" id="memory-usage">--</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Execution Time</div>
+                                <div class="metric-value" id="execution-time">--</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Cache Hit Ratio</div>
+                                <div class="metric-value" id="cache-hit-ratio">--</div>
+                            </div>
+                        </div>
+                        <canvas id="performance-chart" class="performance-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Code tools -->
+                <div class="tool-panel" id="code-tools">
+                    <div class="panel-header">
+                        <h4>Code Tools</h4>
+                        <button class="btn btn-ghost btn-sm panel-toggle">−</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="tool-buttons">
+                            <button class="btn btn-sm btn-primary" id="run-code">
+                                ▶ Run Code
+                            </button>
+                            <button class="btn btn-sm btn-secondary" id="format-code">
+                                ✨ Format
+                            </button>
+                            <button class="btn btn-sm btn-secondary" id="share-code">
+                                🔗 Share
+                            </button>
+                        </div>
+                        
+                        <!-- Code execution status -->
+                        <div class="execution-status" id="execution-status">
+                            <div class="status-indicator" data-status="idle">
+                                <span class="status-dot"></span>
+                                <span class="status-text">Ready</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Educational insights -->
+                <div class="tool-panel" id="educational-insights">
+                    <div class="panel-header">
+                        <h4>Educational Insights</h4>
+                        <button class="btn btn-ghost btn-sm panel-toggle">−</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="insights-container" id="insights-content">
+                            <!-- Educational insights will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <!-- Modals and overlays -->
+    <div class="modal-overlay" id="modal-overlay" style="display: none;">
+        <div class="modal-container" id="modal-container">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+    
+    <!-- Notification container -->
+    <div class="notification-container" id="notifications">
+        <!-- Notifications will be added here -->
+    </div>
+    
+    <!-- Keyboard shortcuts help -->
+    <div class="shortcuts-help" id="shortcuts-help" style="display: none;">
+        <div class="shortcuts-content">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcuts-list">
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                    <span>Focus search</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+                    <span>Run code</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Esc</kbd>
+                    <span>Close modals</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>F1</kbd>
+                    <span>Show help</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>Ctrl</kbd> + <kbd>/</kbd>
+                    <span>Toggle sidebar</span>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="document.getElementById('shortcuts-help').style.display='none'">
+                Got it!
+            </button>
+        </div>
+    </div>
+    
+    <!-- Canvas for visualizations -->
+    <canvas id="visualizationCanvas" style="display: none;"></canvas>
+    
+    <!-- Invisible elements for functionality -->
+    <div style="display: none;">
+        <!-- File input for importing -->
+        <input type="file" id="file-import" accept=".cpp,.hpp,.h,.json,.md">
+        
+        <!-- Text area for copying -->
+        <textarea id="copy-buffer"></textarea>
+    </div>
+    
+    <!-- Scripts will be injected by webpack -->
+    <noscript>
+        <div class="noscript-message">
+            <h2>JavaScript Required</h2>
+            <p>ECScope Interactive Documentation requires JavaScript to be enabled for the full interactive experience.</p>
+            <p>Please enable JavaScript in your browser settings and reload this page.</p>
+        </div>
+    </noscript>
+</body>
+</html>

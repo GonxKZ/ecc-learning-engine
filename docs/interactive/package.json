@@ -1,0 +1,60 @@
+{
+  "name": "ecscope-interactive-docs",
+  "version": "1.0.0",
+  "description": "Interactive documentation system for ECScope Educational ECS Engine",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "webpack serve --mode development --open",
+    "build": "webpack --mode production",
+    "serve": "serve dist/",
+    "test": "jest",
+    "lint": "eslint src/",
+    "generate-api": "node tools/api-generator.js",
+    "build-tutorials": "node tools/tutorial-builder.js",
+    "deploy": "npm run build && npm run deploy:gh-pages"
+  },
+  "keywords": [
+    "ecs",
+    "game-engine",
+    "documentation",
+    "interactive",
+    "education",
+    "c++",
+    "performance"
+  ],
+  "author": "ECScope Educational Framework",
+  "license": "MIT",
+  "dependencies": {
+    "monaco-editor": "^0.45.0",
+    "three": "^0.160.0",
+    "chart.js": "^4.4.0",
+    "highlight.js": "^11.9.0",
+    "markdown-it": "^14.0.0",
+    "fuse.js": "^7.0.0",
+    "d3": "^7.8.5",
+    "webassembly-feature-detection": "^1.0.1"
+  },
+  "devDependencies": {
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.6.0",
+    "css-loader": "^6.10.0",
+    "style-loader": "^3.3.4",
+    "file-loader": "^6.2.0",
+    "copy-webpack-plugin": "^12.0.2",
+    "mini-css-extract-plugin": "^2.8.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "serve": "^14.2.1"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

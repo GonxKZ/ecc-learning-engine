@@ -1,0 +1,56 @@
+# Valgrind Suppressions for ECScope
+# This file contains suppressions for known false positives in ECScope and its dependencies
+
+# OpenGL/Graphics driver suppressions
+{
+   OpenGL_driver_memory_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libGL.so*
+}
+
+{
+   NVIDIA_driver_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libnvidia-glcore.so*
+}
+
+# SDL2 suppressions
+{
+   SDL2_audio_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*/libSDL2*.so*
+}
+
+# Standard library suppressions for known issues
+{
+   std_locale_initialization
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_ZNSt6localeC1Ev
+}
+
+# Thread local storage suppressions
+{
+   tls_initialization
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:_dl_allocate_tls
+}
+
+# Static initialization order suppressions
+{
+   static_init_order
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:__cxa_atexit
+}
