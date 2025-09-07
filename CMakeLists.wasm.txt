@@ -1,0 +1,273 @@
+# =============================================================================
+# ECScope WebAssembly Build Configuration
+# =============================================================================
+
+cmake_minimum_required(VERSION 3.22)
+project(ECScope_WebAssembly
+    VERSION 1.0.0
+    DESCRIPTION "ECScope ECS Engine - WebAssembly Build"
+    LANGUAGES CXX)
+
+# Include WebAssembly configuration
+include(cmake/WebAssembly.cmake)
+
+# Check if we're building for WebAssembly
+if(NOT ECSCOPE_BUILDING_WASM)
+    message(FATAL_ERROR "This CMakeLists.txt is specifically for WebAssembly builds. Use emcmake cmake.")
+endif()
+
+# =============================================================================
+# WEBASSEMBLY-SPECIFIC OPTIONS
+# =============================================================================
+
+# WebAssembly build configuration
+option(ECSCOPE_WASM_BUILD_EXAMPLES "Build WebAssembly examples" ON)
+option(ECSCOPE_WASM_BUILD_DEMOS "Build interactive WebAssembly demos" ON)
+option(ECSCOPE_WASM_BUILD_EDUCATIONAL "Build educational content" ON)
+
+# Disable incompatible features for WebAssembly
+set(ECSCOPE_BUILD_TESTS OFF CACHE BOOL "Tests disabled for WebAssembly" FORCE)
+set(ECSCOPE_BUILD_BENCHMARKS OFF CACHE BOOL "Benchmarks disabled for WebAssembly" FORCE)
+set(ECSCOPE_ENABLE_SCRIPTING OFF CACHE BOOL "Scripting disabled for WebAssembly" FORCE)
+set(ECSCOPE_ENABLE_NUMA OFF CACHE BOOL "NUMA disabled for WebAssembly" FORCE)
+
+# Enable compatible features
+set(ECSCOPE_ENABLE_GRAPHICS ON CACHE BOOL "Graphics enabled for WebGL" FORCE)
+set(ECSCOPE_ENABLE_PHYSICS ON CACHE BOOL "Physics enabled for WebAssembly" FORCE)
+set(ECSCOPE_ENABLE_JOB_SYSTEM ON CACHE BOOL "Job system enabled with WebWorkers" FORCE)
+set(ECSCOPE_ENABLE_MEMORY_ANALYSIS ON CACHE BOOL "Memory analysis enabled" FORCE)
+set(ECSCOPE_ENABLE_PERFORMANCE_LAB ON CACHE BOOL "Performance lab enabled" FORCE)
+
+# =============================================================================
+# INCLUDE MAIN PROJECT
+# =============================================================================
+
+# Include the main CMakeLists.txt but override specific settings
+include(CMakeLists.txt)
+
+# =============================================================================
+# WEBASSEMBLY CORE LIBRARY
+# =============================================================================
+
+# Create WebAssembly-specific core library
+add_library(ecscope_wasm STATIC)
+
+target_sources(ecscope_wasm PRIVATE
+    # WebAssembly-specific implementations
+    src/wasm/wasm_core.cpp
+    src/wasm/wasm_memory_manager.cpp
+    src/wasm/wasm_performance_monitor.cpp
+    src/wasm/wasm_graphics_context.cpp
+    
+    # JavaScript bindings
+    src/wasm/bindings/ecs_bindings.cpp
+    src/wasm/bindings/physics_bindings.cpp
+    src/wasm/bindings/graphics_bindings.cpp
+    src/wasm/bindings/memory_bindings.cpp
+    src/wasm/bindings/performance_bindings.cpp
+)
+
+target_include_directories(ecscope_wasm
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/wasm>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
+target_link_libraries(ecscope_wasm
+    PUBLIC
+        ecscope_core
+        ecscope_memory
+        $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+        $<$<BOOL:${ECSCOPE_HAS_GRAPHICS}>:ecscope_graphics>
+        $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+        $<$<BOOL:${ECSCOPE_ENABLE_PERFORMANCE_LAB}>:ecscope_performance>
+)
+
+# Configure for WebAssembly
+ecscope_configure_wasm_target(ecscope_wasm)
+
+# =============================================================================
+# WEBASSEMBLY MAIN APPLICATION
+# =============================================================================
+
+add_executable(ecscope_web)
+target_sources(ecscope_web PRIVATE
+    src/wasm/main_web.cpp
+)
+
+target_link_libraries(ecscope_web PRIVATE
+    ecscope_wasm
+    ecscope
+)
+
+# Configure WebAssembly build
+ecscope_configure_wasm_target(ecscope_web)
+
+# Set additional linker flags for the main application
+target_link_options(ecscope_web PRIVATE
+    --shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html
+    --preload-file=${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets
+)
+
+# =============================================================================
+# WEBASSEMBLY DEMOS
+# =============================================================================
+
+if(ECSCOPE_WASM_BUILD_DEMOS)
+    # Basic ECS Demo
+    add_executable(demo_basic_ecs)
+    target_sources(demo_basic_ecs PRIVATE src/wasm/demos/basic_ecs_demo.cpp)
+    target_link_libraries(demo_basic_ecs PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(demo_basic_ecs)
+    
+    # Physics Demo
+    if(ECSCOPE_ENABLE_PHYSICS)
+        add_executable(demo_physics)
+        target_sources(demo_physics PRIVATE src/wasm/demos/physics_demo.cpp)
+        target_link_libraries(demo_physics PRIVATE ecscope_wasm)
+        ecscope_configure_wasm_target(demo_physics)
+    endif()
+    
+    # Graphics Demo
+    if(ECSCOPE_HAS_GRAPHICS)
+        add_executable(demo_graphics)
+        target_sources(demo_graphics PRIVATE src/wasm/demos/graphics_demo.cpp)
+        target_link_libraries(demo_graphics PRIVATE ecscope_wasm)
+        ecscope_configure_wasm_target(demo_graphics)
+    endif()
+    
+    # Performance Demo
+    add_executable(demo_performance)
+    target_sources(demo_performance PRIVATE src/wasm/demos/performance_demo.cpp)
+    target_link_libraries(demo_performance PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(demo_performance)
+    
+    # Memory Management Demo
+    add_executable(demo_memory)
+    target_sources(demo_memory PRIVATE src/wasm/demos/memory_demo.cpp)
+    target_link_libraries(demo_memory PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(demo_memory)
+endif()
+
+# =============================================================================
+# WEBASSEMBLY EDUCATIONAL CONTENT
+# =============================================================================
+
+if(ECSCOPE_WASM_BUILD_EDUCATIONAL)
+    # ECS Tutorial Series
+    add_executable(tutorial_ecs_basics)
+    target_sources(tutorial_ecs_basics PRIVATE src/wasm/tutorials/ecs_basics_tutorial.cpp)
+    target_link_libraries(tutorial_ecs_basics PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(tutorial_ecs_basics)
+    
+    add_executable(tutorial_components)
+    target_sources(tutorial_components PRIVATE src/wasm/tutorials/components_tutorial.cpp)
+    target_link_libraries(tutorial_components PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(tutorial_components)
+    
+    add_executable(tutorial_systems)
+    target_sources(tutorial_systems PRIVATE src/wasm/tutorials/systems_tutorial.cpp)
+    target_link_libraries(tutorial_systems PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(tutorial_systems)
+    
+    # Memory Management Tutorial
+    add_executable(tutorial_memory)
+    target_sources(tutorial_memory PRIVATE src/wasm/tutorials/memory_tutorial.cpp)
+    target_link_libraries(tutorial_memory PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(tutorial_memory)
+    
+    # Performance Tutorial
+    add_executable(tutorial_performance)
+    target_sources(tutorial_performance PRIVATE src/wasm/tutorials/performance_tutorial.cpp)
+    target_link_libraries(tutorial_performance PRIVATE ecscope_wasm)
+    ecscope_configure_wasm_target(tutorial_performance)
+endif()
+
+# =============================================================================
+# POST-BUILD PROCESSING
+# =============================================================================
+
+# Copy HTML files and assets after build
+add_custom_target(copy_web_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/web
+        ${CMAKE_CURRENT_BINARY_DIR}/web
+    COMMENT "Copying web assets"
+)
+
+add_dependencies(ecscope_web copy_web_assets)
+
+# Generate index.html with all demos
+add_custom_target(generate_index
+    COMMAND ${CMAKE_COMMAND} 
+        -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -DBINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_web_index.cmake
+    COMMENT "Generating web index"
+    DEPENDS copy_web_assets
+)
+
+if(ECSCOPE_WASM_BUILD_DEMOS OR ECSCOPE_WASM_BUILD_EDUCATIONAL)
+    add_dependencies(generate_index 
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_DEMOS}>:demo_basic_ecs>
+        $<$<AND:$<BOOL:${ECSCOPE_WASM_BUILD_DEMOS}>,$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>>:demo_physics>
+        $<$<AND:$<BOOL:${ECSCOPE_WASM_BUILD_DEMOS}>,$<BOOL:${ECSCOPE_HAS_GRAPHICS}>>:demo_graphics>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_DEMOS}>:demo_performance>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_DEMOS}>:demo_memory>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_EDUCATIONAL}>:tutorial_ecs_basics>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_EDUCATIONAL}>:tutorial_components>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_EDUCATIONAL}>:tutorial_systems>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_EDUCATIONAL}>:tutorial_memory>
+        $<$<BOOL:${ECSCOPE_WASM_BUILD_EDUCATIONAL}>:tutorial_performance>
+    )
+endif()
+
+# =============================================================================
+# INSTALLATION
+# =============================================================================
+
+# Install WebAssembly files
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/ecscope_web.js
+    ${CMAKE_CURRENT_BINARY_DIR}/ecscope_web.wasm
+    DESTINATION web
+)
+
+# Install HTML and CSS files
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/web/
+    DESTINATION web
+    FILES_MATCHING 
+        PATTERN "*.html"
+        PATTERN "*.css"
+        PATTERN "*.js"
+)
+
+# =============================================================================
+# BUILD INFORMATION
+# =============================================================================
+
+message(STATUS "")
+message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "  ECScope WebAssembly Build Configuration")
+message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "WebAssembly Features:")
+message(STATUS "  SIMD: ${ECSCOPE_WASM_ENABLE_SIMD}")
+message(STATUS "  Threads: ${ECSCOPE_WASM_ENABLE_THREADS}")
+message(STATUS "  Bulk Memory: ${ECSCOPE_WASM_ENABLE_BULK_MEMORY}")
+message(STATUS "  Initial Memory: ${ECSCOPE_WASM_INITIAL_MEMORY}")
+message(STATUS "  Maximum Memory: ${ECSCOPE_WASM_MAXIMUM_MEMORY}")
+message(STATUS "")
+message(STATUS "Build Targets:")
+message(STATUS "  Main Application: ecscope_web")
+if(ECSCOPE_WASM_BUILD_DEMOS)
+    message(STATUS "  Demos: demo_basic_ecs, demo_physics, demo_graphics, demo_performance, demo_memory")
+endif()
+if(ECSCOPE_WASM_BUILD_EDUCATIONAL)
+    message(STATUS "  Tutorials: tutorial_ecs_basics, tutorial_components, tutorial_systems, tutorial_memory, tutorial_performance")
+endif()
+message(STATUS "")
+message(STATUS "Build Commands:")
+message(STATUS "  emcmake cmake -S . -B build-wasm -f CMakeLists.wasm.txt")
+message(STATUS "  cmake --build build-wasm --parallel")
+message(STATUS "")
+message(STATUS "═══════════════════════════════════════════════════════════════")

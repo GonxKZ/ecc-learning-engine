@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECScope - Educational ECS Engine WebAssembly Platform</title>
+    
+    <!-- Complete CSS styling -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/panels.css">
+    <link rel="stylesheet" href="css/tutorials.css">
+    <link rel="stylesheet" href="css/demos.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    
+    <!-- Fonts and icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Meta information -->
+    <meta name="description" content="ECScope: Complete WebAssembly Educational ECS Engine with interactive tutorials, real-time performance monitoring, and advanced demos">
+    <meta name="keywords" content="ECS, Entity Component System, WebAssembly, Educational, C++, Game Engine, Performance, Tutorials">
+    <meta name="author" content="ECScope Team">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ECScope - Educational ECS Engine">
+    <meta property="og:description" content="Complete WebAssembly ECS platform with interactive tutorials and real-time performance monitoring">
+    <meta property="og:url" content="https://ecscope.com">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+</head>
+<body>
+    <!-- Loading screen with advanced progress tracking -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-container">
+            <div class="loading-logo">
+                <svg width="64" height="64" viewBox="0 0 64 64" class="logo-animation">
+                    <!-- ECScope logo with CSS animation -->
+                    <circle cx="32" cy="32" r="30" fill="none" stroke="#00d4ff" stroke-width="2" stroke-dasharray="188" stroke-dashoffset="188">
+                        <animate attributeName="stroke-dashoffset" from="188" to="0" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                    <polygon points="24,20 40,20 44,32 40,44 24,44 20,32" fill="#00d4ff" opacity="0.8">
+                        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+                    </polygon>
+                    <text x="32" y="36" text-anchor="middle" fill="white" font-family="Arial" font-size="10" font-weight="bold">ECS</text>
+                </svg>
+            </div>
+            <h1 class="loading-title">ECScope Educational Platform</h1>
+            <p class="loading-subtitle">Loading WebAssembly ECS Engine...</p>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="loading-status" class="loading-status">Initializing WebAssembly...</div>
+                <div id="loading-percentage" class="loading-percentage">0%</div>
+            </div>
+            
+            <div class="loading-steps">
+                <div class="step" id="step-wasm">
+                    <i class="fas fa-cogs"></i>
+                    <span>Loading WebAssembly</span>
+                </div>
+                <div class="step" id="step-graphics">
+                    <i class="fas fa-image"></i>
+                    <span>Initializing Graphics</span>
+                </div>
+                <div class="step" id="step-physics">
+                    <i class="fas fa-atom"></i>
+                    <span>Setting up Physics</span>
+                </div>
+                <div class="step" id="step-tutorials">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Loading Tutorials</span>
+                </div>
+                <div class="step" id="step-ready">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Ready!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main application container -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- Top navigation bar -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 64 64">
+                        <circle cx="32" cy="32" r="30" fill="none" stroke="#00d4ff" stroke-width="2"/>
+                        <polygon points="24,20 40,20 44,32 40,44 24,44 20,32" fill="#00d4ff" opacity="0.8"/>
+                        <text x="32" y="36" text-anchor="middle" fill="white" font-family="Arial" font-size="10" font-weight="bold">ECS</text>
+                    </svg>
+                    <span class="logo-text">ECScope</span>
+                </div>
+                
+                <nav class="main-nav">
+                    <button class="nav-btn active" data-tab="playground">
+                        <i class="fas fa-play-circle"></i>
+                        <span>Playground</span>
+                    </button>
+                    <button class="nav-btn" data-tab="tutorials">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>Tutorials</span>
+                    </button>
+                    <button class="nav-btn" data-tab="demos">
+                        <i class="fas fa-rocket"></i>
+                        <span>Demos</span>
+                    </button>
+                    <button class="nav-btn" data-tab="performance">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Performance</span>
+                    </button>
+                    <button class="nav-btn" data-tab="documentation">
+                        <i class="fas fa-book"></i>
+                        <span>Docs</span>
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="header-right">
+                <!-- Performance indicator -->
+                <div class="performance-indicator">
+                    <div class="fps-display">
+                        <span class="fps-label">FPS:</span>
+                        <span id="fps-value" class="fps-value">60</span>
+                    </div>
+                    <div class="memory-display">
+                        <span class="memory-label">Memory:</span>
+                        <span id="memory-value" class="memory-value">0 MB</span>
+                    </div>
+                </div>
+                
+                <!-- Settings and help -->
+                <div class="header-actions">
+                    <button id="settings-btn" class="icon-btn" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button id="fullscreen-btn" class="icon-btn" title="Toggle Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button id="help-btn" class="icon-btn" title="Help">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main content area -->
+        <main class="main-content">
+            <!-- Playground Tab -->
+            <div id="playground-tab" class="tab-content active">
+                <div class="playground-layout">
+                    <!-- Canvas container -->
+                    <div class="canvas-container">
+                        <canvas id="webgl-canvas" class="main-canvas"></canvas>
+                        
+                        <!-- Canvas overlay for UI elements -->
+                        <div class="canvas-overlay">
+                            <div class="render-stats">
+                                <div class="stat">
+                                    <span class="stat-label">Draw Calls:</span>
+                                    <span id="draw-calls" class="stat-value">0</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Triangles:</span>
+                                    <span id="triangle-count" class="stat-value">0</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Entities:</span>
+                                    <span id="entity-count" class="stat-value">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Canvas controls -->
+                            <div class="canvas-controls">
+                                <button id="play-pause-btn" class="control-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button id="step-btn" class="control-btn">
+                                    <i class="fas fa-step-forward"></i>
+                                </button>
+                                <button id="reset-btn" class="control-btn">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button id="camera-reset-btn" class="control-btn">
+                                    <i class="fas fa-video"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Side panels -->
+                    <div class="side-panels">
+                        <!-- ECS Inspector Panel -->
+                        <div class="panel" id="ecs-panel">
+                            <div class="panel-header">
+                                <h3>ECS Inspector</h3>
+                                <button class="panel-toggle">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="panel-content">
+                                <div class="ecs-stats">
+                                    <div class="stat-group">
+                                        <h4>Entities</h4>
+                                        <div class="stat-item">
+                                            <span>Active:</span>
+                                            <span id="active-entities">0</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span>Total Created:</span>
+                                            <span id="total-entities">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="stat-group">
+                                        <h4>Archetypes</h4>
+                                        <div class="stat-item">
+                                            <span>Count:</span>
+                                            <span id="archetype-count">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="stat-group">
+                                        <h4>Systems</h4>
+                                        <div class="stat-item">
+                                            <span>Registered:</span>
+                                            <span id="system-count">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="entity-browser">
+                                    <h4>Entity Browser</h4>
+                                    <div class="search-bar">
+                                        <input type="text" id="entity-search" placeholder="Search entities...">
+                                        <button class="search-btn">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="entity-list" class="entity-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Memory Panel -->
+                        <div class="panel" id="memory-panel">
+                            <div class="panel-header">
+                                <h3>Memory Monitor</h3>
+                                <button class="panel-toggle">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="panel-content">
+                                <div class="memory-stats">
+                                    <div class="memory-chart-container">
+                                        <canvas id="memory-chart" class="chart-canvas"></canvas>
+                                    </div>
+                                    <div class="memory-details">
+                                        <div class="memory-item">
+                                            <span class="memory-label">Heap Used:</span>
+                                            <span id="heap-used" class="memory-value">0 KB</span>
+                                        </div>
+                                        <div class="memory-item">
+                                            <span class="memory-label">Heap Total:</span>
+                                            <span id="heap-total" class="memory-value">0 KB</span>
+                                        </div>
+                                        <div class="memory-item">
+                                            <span class="memory-label">WebGL Memory:</span>
+                                            <span id="webgl-memory" class="memory-value">0 KB</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="gc-btn" class="action-btn">
+                                    <i class="fas fa-trash"></i>
+                                    Force Garbage Collection
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Physics Panel -->
+                        <div class="panel" id="physics-panel">
+                            <div class="panel-header">
+                                <h3>Physics Debug</h3>
+                                <button class="panel-toggle">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="panel-content">
+                                <div class="physics-controls">
+                                    <div class="control-group">
+                                        <h4>Visualization</h4>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="show-colliders">
+                                            <span class="checkmark"></span>
+                                            Show Colliders
+                                        </label>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="show-velocity">
+                                            <span class="checkmark"></span>
+                                            Show Velocity
+                                        </label>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="show-forces">
+                                            <span class="checkmark"></span>
+                                            Show Forces
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="control-group">
+                                        <h4>World Settings</h4>
+                                        <div class="slider-control">
+                                            <label>Gravity X:</label>
+                                            <input type="range" id="gravity-x" min="-100" max="100" value="0" step="1">
+                                            <span id="gravity-x-value">0</span>
+                                        </div>
+                                        <div class="slider-control">
+                                            <label>Gravity Y:</label>
+                                            <input type="range" id="gravity-y" min="-100" max="100" value="-9.8" step="0.1">
+                                            <span id="gravity-y-value">-9.8</span>
+                                        </div>
+                                        <div class="slider-control">
+                                            <label>Time Scale:</label>
+                                            <input type="range" id="time-scale" min="0" max="2" value="1" step="0.1">
+                                            <span id="time-scale-value">1.0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tutorials Tab -->
+            <div id="tutorials-tab" class="tab-content">
+                <div class="tutorials-layout">
+                    <div class="tutorial-sidebar">
+                        <div class="tutorial-search">
+                            <input type="text" placeholder="Search tutorials..." class="search-input">
+                        </div>
+                        <div class="tutorial-categories">
+                            <div class="category active" data-category="basics">
+                                <i class="fas fa-graduation-cap"></i>
+                                <span>Basics</span>
+                            </div>
+                            <div class="category" data-category="intermediate">
+                                <i class="fas fa-cogs"></i>
+                                <span>Intermediate</span>
+                            </div>
+                            <div class="category" data-category="advanced">
+                                <i class="fas fa-rocket"></i>
+                                <span>Advanced</span>
+                            </div>
+                            <div class="category" data-category="performance">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Performance</span>
+                            </div>
+                        </div>
+                        <div id="tutorial-list" class="tutorial-list">
+                            <!-- Tutorial items will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="tutorial-content">
+                        <div class="tutorial-header">
+                            <h2 id="tutorial-title">Welcome to ECScope Tutorials</h2>
+                            <div class="tutorial-progress">
+                                <div class="progress-bar">
+                                    <div id="tutorial-progress-fill" class="progress-fill"></div>
+                                </div>
+                                <span id="tutorial-progress-text">0% Complete</span>
+                            </div>
+                        </div>
+                        
+                        <div id="tutorial-body" class="tutorial-body">
+                            <div class="welcome-message">
+                                <h3>Interactive ECS Learning Platform</h3>
+                                <p>Welcome to the ECScope educational platform! Here you'll learn Entity-Component-System architecture through interactive tutorials and hands-on examples.</p>
+                                <p>Select a tutorial from the sidebar to get started.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tutorial-navigation">
+                            <button id="prev-step" class="nav-btn" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                                Previous
+                            </button>
+                            <button id="next-step" class="nav-btn">
+                                Next
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demos Tab -->
+            <div id="demos-tab" class="tab-content">
+                <div class="demos-grid">
+                    <div class="demo-card" data-demo="particle-system">
+                        <div class="demo-thumbnail">
+                            <canvas class="demo-preview" width="300" height="200"></canvas>
+                            <div class="demo-overlay">
+                                <button class="demo-play-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="demo-info">
+                            <h3>Particle System</h3>
+                            <p>Advanced particle system demonstrating component-based architecture with performance optimization.</p>
+                            <div class="demo-tags">
+                                <span class="tag">Graphics</span>
+                                <span class="tag">Performance</span>
+                                <span class="tag">ECS</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-card" data-demo="physics-sandbox">
+                        <div class="demo-thumbnail">
+                            <canvas class="demo-preview" width="300" height="200"></canvas>
+                            <div class="demo-overlay">
+                                <button class="demo-play-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="demo-info">
+                            <h3>Physics Sandbox</h3>
+                            <p>Interactive physics simulation with real-time debugging and performance analysis.</p>
+                            <div class="demo-tags">
+                                <span class="tag">Physics</span>
+                                <span class="tag">Interactive</span>
+                                <span class="tag">Debug</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-card" data-demo="ecs-showcase">
+                        <div class="demo-thumbnail">
+                            <canvas class="demo-preview" width="300" height="200"></canvas>
+                            <div class="demo-overlay">
+                                <button class="demo-play-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="demo-info">
+                            <h3>ECS Architecture Showcase</h3>
+                            <p>Complete demonstration of ECS patterns, system dependencies, and performance benefits.</p>
+                            <div class="demo-tags">
+                                <span class="tag">Architecture</span>
+                                <span class="tag">Educational</span>
+                                <span class="tag">Systems</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-card" data-demo="memory-visualization">
+                        <div class="demo-thumbnail">
+                            <canvas class="demo-preview" width="300" height="200"></canvas>
+                            <div class="demo-overlay">
+                                <button class="demo-play-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="demo-info">
+                            <h3>Memory Visualization</h3>
+                            <p>Real-time memory layout visualization showing archetype organization and cache efficiency.</p>
+                            <div class="demo-tags">
+                                <span class="tag">Memory</span>
+                                <span class="tag">Visualization</span>
+                                <span class="tag">Performance</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Tab -->
+            <div id="performance-tab" class="tab-content">
+                <div class="performance-dashboard">
+                    <div class="dashboard-header">
+                        <h2>Performance Dashboard</h2>
+                        <div class="dashboard-controls">
+                            <button id="start-benchmark" class="action-btn">
+                                <i class="fas fa-play"></i>
+                                Start Benchmark
+                            </button>
+                            <button id="clear-metrics" class="action-btn secondary">
+                                <i class="fas fa-trash"></i>
+                                Clear Metrics
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Frame Rate</h3>
+                                <span class="metric-value" id="fps-metric">60 FPS</span>
+                            </div>
+                            <canvas id="fps-chart" class="metric-chart"></canvas>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>Memory Usage</h3>
+                                <span class="metric-value" id="memory-metric">0 MB</span>
+                            </div>
+                            <canvas id="memory-usage-chart" class="metric-chart"></canvas>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>GPU Performance</h3>
+                                <span class="metric-value" id="gpu-metric">0 ms</span>
+                            </div>
+                            <canvas id="gpu-chart" class="metric-chart"></canvas>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <h3>System Performance</h3>
+                                <span class="metric-value" id="system-metric">0 ms</span>
+                            </div>
+                            <canvas id="system-chart" class="metric-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="benchmark-results">
+                        <h3>Benchmark Results</h3>
+                        <div id="benchmark-table" class="benchmark-table">
+                            <!-- Benchmark results will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Documentation Tab -->
+            <div id="documentation-tab" class="tab-content">
+                <div class="docs-layout">
+                    <div class="docs-sidebar">
+                        <div class="docs-search">
+                            <input type="text" placeholder="Search documentation..." class="search-input">
+                        </div>
+                        <div class="docs-nav">
+                            <div class="nav-section">
+                                <h4>Getting Started</h4>
+                                <a href="#introduction">Introduction</a>
+                                <a href="#quick-start">Quick Start</a>
+                                <a href="#architecture">Architecture</a>
+                            </div>
+                            <div class="nav-section">
+                                <h4>ECS Concepts</h4>
+                                <a href="#entities">Entities</a>
+                                <a href="#components">Components</a>
+                                <a href="#systems">Systems</a>
+                                <a href="#archetypes">Archetypes</a>
+                            </div>
+                            <div class="nav-section">
+                                <h4>Advanced Topics</h4>
+                                <a href="#performance">Performance</a>
+                                <a href="#memory-management">Memory Management</a>
+                                <a href="#multi-threading">Multi-threading</a>
+                            </div>
+                            <div class="nav-section">
+                                <h4>API Reference</h4>
+                                <a href="#registry-api">Registry</a>
+                                <a href="#entity-api">Entity</a>
+                                <a href="#component-api">Components</a>
+                                <a href="#system-api">Systems</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="docs-content">
+                        <div id="docs-body">
+                            <h1>ECScope Documentation</h1>
+                            <p>Complete documentation for the ECScope educational ECS platform.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modals and Overlays -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>Graphics Settings</h4>
+                    <div class="setting-item">
+                        <label>VSync:</label>
+                        <input type="checkbox" id="vsync-setting" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label>Antialiasing:</label>
+                        <input type="checkbox" id="aa-setting" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label>Target FPS:</label>
+                        <select id="fps-setting">
+                            <option value="30">30 FPS</option>
+                            <option value="60" selected>60 FPS</option>
+                            <option value="120">120 FPS</option>
+                            <option value="0">Unlimited</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Debug Settings</h4>
+                    <div class="setting-item">
+                        <label>Show Debug Info:</label>
+                        <input type="checkbox" id="debug-info-setting">
+                    </div>
+                    <div class="setting-item">
+                        <label>Log Level:</label>
+                        <select id="log-level-setting">
+                            <option value="error">Error</option>
+                            <option value="warn">Warning</option>
+                            <option value="info" selected>Info</option>
+                            <option value="debug">Debug</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Help & Controls</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h4>Keyboard Shortcuts</h4>
+                    <div class="shortcut-list">
+                        <div class="shortcut">
+                            <kbd>Space</kbd>
+                            <span>Play/Pause</span>
+                        </div>
+                        <div class="shortcut">
+                            <kbd>R</kbd>
+                            <span>Reset Scene</span>
+                        </div>
+                        <div class="shortcut">
+                            <kbd>F</kbd>
+                            <span>Toggle Fullscreen</span>
+                        </div>
+                        <div class="shortcut">
+                            <kbd>F1</kbd>
+                            <span>Show/Hide Help</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h4>Mouse Controls</h4>
+                    <div class="shortcut-list">
+                        <div class="shortcut">
+                            <span class="mouse-btn">Left Click</span>
+                            <span>Select Entity</span>
+                        </div>
+                        <div class="shortcut">
+                            <span class="mouse-btn">Right Click</span>
+                            <span>Context Menu</span>
+                        </div>
+                        <div class="shortcut">
+                            <span class="mouse-btn">Mouse Wheel</span>
+                            <span>Zoom Camera</span>
+                        </div>
+                        <div class="shortcut">
+                            <span class="mouse-btn">Middle Drag</span>
+                            <span>Pan Camera</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Error notifications -->
+    <div id="error-notifications" class="error-notifications"></div>
+    
+    <!-- JavaScript modules -->
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/ui/ui-manager.js"></script>
+    <script type="module" src="js/ui/panels.js"></script>
+    <script type="module" src="js/ui/charts.js"></script>
+    <script type="module" src="js/tutorials/tutorial-manager.js"></script>
+    <script type="module" src="js/demos/demo-manager.js"></script>
+    <script type="module" src="js/performance/performance-monitor.js"></script>
+    <script type="module" src="js/utils/error-handler.js"></script>
+    <script type="module" src="js/utils/input-handler.js"></script>
+    
+    <!-- WebAssembly loading script -->
+    <script>
+        // Global configuration
+        window.ECScope = {
+            config: {
+                canvas: 'webgl-canvas',
+                enableDebug: true,
+                targetFPS: 60,
+                memoryLimit: 512 * 1024 * 1024, // 512MB
+                autoResize: true
+            },
+            modules: {},
+            performance: {
+                startTime: performance.now(),
+                loadingSteps: []
+            }
+        };
+        
+        // Loading progress tracking
+        function updateLoadingProgress(step, progress, status) {
+            const progressFill = document.getElementById('progress-fill');
+            const loadingStatus = document.getElementById('loading-status');
+            const loadingPercentage = document.getElementById('loading-percentage');
+            const stepElement = document.getElementById(`step-${step}`);
+            
+            if (progressFill) progressFill.style.width = `${progress}%`;
+            if (loadingStatus) loadingStatus.textContent = status;
+            if (loadingPercentage) loadingPercentage.textContent = `${Math.round(progress)}%`;
+            if (stepElement) stepElement.classList.add('active');
+            
+            window.ECScope.performance.loadingSteps.push({
+                step,
+                progress,
+                status,
+                timestamp: performance.now()
+            });
+        }
+    </script>
+</body>
+</html>

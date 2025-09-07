@@ -1,0 +1,609 @@
+/* =============================================================================
+   ECScope WebAssembly - Component Styles
+   ============================================================================= */
+
+/* =============================================================================
+   ECS Playground Components
+   ============================================================================= */
+
+.ecs-playground {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.playground-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.playground-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.entity-list, .archetype-view {
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+}
+
+.entity-list h3, .archetype-view h3 {
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.entity-items, .archetype-items {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.entity-item {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: var(--transition-base);
+}
+
+.entity-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.entity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.entity-id {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-family: var(--font-family-monospace);
+}
+
+.entity-components {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.component-tag {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--info-color);
+    color: white;
+    border-radius: var(--border-radius);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.component-data {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: var(--font-family-monospace);
+}
+
+.archetype-item {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.archetype-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.archetype-id {
+    font-weight: 600;
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+}
+
+.archetype-count {
+    background: var(--background-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.archetype-components {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.archetype-components .component-tag {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
+
+/* =============================================================================
+   Physics Playground Components
+   ============================================================================= */
+
+.physics-playground {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.physics-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+}
+
+.control-group label {
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.control-group input[type="range"] {
+    width: 100px;
+    margin: 0 0.5rem;
+}
+
+.control-group span {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-family: var(--font-family-monospace);
+    min-width: 50px;
+}
+
+.physics-canvas-container, .graphics-canvas-container {
+    position: relative;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.physics-canvas-container canvas, .graphics-canvas-container canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--border-radius);
+}
+
+.canvas-overlay {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    backdrop-filter: blur(5px);
+    box-shadow: var(--shadow-sm);
+}
+
+.physics-stats, .graphics-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    font-family: var(--font-family-monospace);
+}
+
+.physics-stats span, .graphics-stats span {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* =============================================================================
+   Graphics Playground Components
+   ============================================================================= */
+
+.graphics-playground {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.graphics-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* =============================================================================
+   Performance Dashboard Components
+   ============================================================================= */
+
+.performance-dashboard {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+
+.performance-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-container {
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-container h3 {
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.chart-container canvas {
+    width: 100%;
+    height: 200px;
+    border-radius: var(--border-radius);
+}
+
+.performance-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.metric-group {
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+}
+
+.metric-group h3 {
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-item span:first-child {
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.metric-item span:last-child {
+    color: var(--text-muted);
+    font-family: var(--font-family-monospace);
+    font-weight: 600;
+}
+
+.performance-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+/* =============================================================================
+   Tutorial Components
+   ============================================================================= */
+
+.tutorial-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.tutorial-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-base);
+}
+
+.tutorial-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.tutorial-card h3 {
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.tutorial-card p {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.tutorial-progress {
+    margin-bottom: 1rem;
+}
+
+.tutorial-progress .progress-bar {
+    margin-bottom: 0.5rem;
+}
+
+.tutorial-progress span {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.tutorial-content {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+    margin-top: 2rem;
+}
+
+.tutorial-step {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tutorial-step:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.tutorial-step h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.tutorial-step-content {
+    margin-bottom: 1rem;
+}
+
+.tutorial-controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* =============================================================================
+   Demo Components
+   ============================================================================= */
+
+.demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.demo-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-base);
+}
+
+.demo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.demo-preview {
+    position: relative;
+    background: var(--background-color);
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.demo-preview canvas {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--border-radius);
+}
+
+.demo-card h3 {
+    padding: 1rem 1.5rem 0.5rem;
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.demo-card p {
+    padding: 0 1.5rem 1rem;
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.demo-card .btn {
+    margin: 0 1.5rem 1.5rem;
+    width: calc(100% - 3rem);
+}
+
+/* =============================================================================
+   Modal Components
+   ============================================================================= */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+    max-width: 1200px;
+    max-height: 90%;
+    overflow: hidden;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius);
+    transition: var(--transition-base);
+}
+
+.modal-close:hover {
+    background: var(--border-color);
+    color: var(--text-color);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: calc(90vh - 120px);
+}
+
+/* =============================================================================
+   Responsive Adjustments
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+    .performance-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .playground-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .physics-controls, .graphics-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .control-group {
+        justify-content: space-between;
+    }
+    
+    .performance-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .playground-controls {
+        justify-content: center;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .canvas-overlay {
+        position: static;
+        margin-top: 1rem;
+        background: var(--surface-color);
+    }
+}

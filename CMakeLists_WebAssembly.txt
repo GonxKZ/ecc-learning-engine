@@ -1,0 +1,668 @@
+cmake_minimum_required(VERSION 3.22)
+
+# ==============================================================================
+# ECSCOPE WEBASSEMBLY BUILD CONFIGURATION - COMPLETE IMPLEMENTATION
+# ==============================================================================
+# Complete production-ready WebAssembly build system for ECScope
+# This builds ECScope as a full-featured WebAssembly module with:
+# - Complete JavaScript/C++ bindings via Embind
+# - Full WebGL 2.0 rendering capabilities with advanced shaders
+# - Complete educational platform and interactive tutorials
+# - Full performance monitoring and profiling
+# - Multiple complete demo applications with full functionality
+# - Production-ready error handling and memory management
+# - Complete WebAssembly optimizations and SIMD support
+# - Full integration with existing ECScope systems
+# ==============================================================================
+
+project(ECScope_WebAssembly
+    VERSION 1.0.0
+    DESCRIPTION "ECScope WebAssembly - Complete Educational ECS Engine for Web"
+    LANGUAGES CXX
+)
+
+# Verify Emscripten is being used
+if(NOT EMSCRIPTEN)
+    message(FATAL_ERROR "This CMakeLists.txt is specifically for Emscripten/WebAssembly builds. Use: emcmake cmake -DCMAKE_TOOLCHAIN_FILE=${EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake")
+endif()
+
+# ==============================================================================
+# WEBASSEMBLY CONFIGURATION
+# ==============================================================================
+
+# C++20 with WebAssembly optimizations
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# WebAssembly-specific build configuration
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "WebAssembly builds should be optimized")
+set(CMAKE_EXECUTABLE_SUFFIX ".html")
+
+# ==============================================================================
+# EMSCRIPTEN FLAGS AND OPTIMIZATIONS
+# ==============================================================================
+
+# Core Emscripten compilation flags for maximum performance
+set(EMSCRIPTEN_COMPILE_FLAGS
+    # Memory and threading (optimized for single-threaded web)
+    "-sUSE_PTHREADS=0"
+    "-sPTHREAD_POOL_SIZE=0"
+    "-sSINGLE_FILE=0"
+    
+    # WebGL and graphics
+    "-sUSE_WEBGL2=1"
+    "-sFULL_ES3=1"
+    "-sUSE_GLFW=3"
+    "-sWASM_WORKERS=1"
+    
+    # Memory configuration (optimized for educational applications)
+    "-sINITIAL_MEMORY=268435456"  # 256MB initial for complex demos
+    "-sMAXIMUM_MEMORY=1073741824" # 1GB maximum for large simulations
+    "-sALLOW_MEMORY_GROWTH=1"
+    "-sSTACK_SIZE=8388608"        # 8MB stack for deep call stacks
+    
+    # Performance optimizations
+    "-sWASM=1"
+    "-sOPTIMIZE_FOR_OPT_SIZE=0"  # Optimize for speed, not size
+    "-sFETCH=1"                  # Enable fetch API
+    "-sASYNCIFY=1"               # Enable async/await support
+    
+    # Feature detection and support
+    "-sSUPPORT_BIG_ENDIAN=0"
+    "-sENVIRONMENT=web,webview,worker"
+    "-sMODULARIZE=1"
+    "-sEXPORT_NAME=ECScope"
+    
+    # File system and assets
+    "-sFORCE_FILESYSTEM=1"
+    "-sNO_EXIT_RUNTIME=1"
+    "-sASSERTIONS=0"             # Disable assertions in release
+    
+    # Advanced optimizations
+    "-sAGGRESSIVE_VARIABLE_ELIMINATION=1"
+    "-sELIMINATE_DUPLICATE_FUNCTIONS=1"
+)
+
+# Release-specific optimizations
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    list(APPEND EMSCRIPTEN_COMPILE_FLAGS
+        "-O3"
+        "-flto"
+        "--closure=1"
+        "-g0"  # No debug info in release
+        "-DNDEBUG"
+        "--emit-symbol-map"
+    )
+else()
+    # Debug configuration
+    list(APPEND EMSCRIPTEN_COMPILE_FLAGS
+        "-O1"
+        "-g3"
+        "-gsource-map"
+        "-sASSERTIONS=2"
+        "-sSAFE_HEAP=1"
+        "-sSTACK_OVERFLOW_CHECK=1"
+    )
+endif()
+
+# Linker-specific flags
+set(EMSCRIPTEN_LINK_FLAGS
+    # Export all necessary symbols
+    "-sEXPORTED_FUNCTIONS=['_main', '_malloc', '_free']"
+    "-sEXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'getValue', 'setValue', 'UTF8ToString', 'stringToUTF8']"
+    
+    # Embind exports
+    "--bind"
+    "-sEMBIND_STD_STRING_IS_UTF8=1"
+    
+    # Shell and template configuration
+    "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web/shell_template.html"
+    "--pre-js=${CMAKE_CURRENT_SOURCE_DIR}/web/pre_js.js"
+    "--post-js=${CMAKE_CURRENT_SOURCE_DIR}/web/post_js.js"
+    
+    # Asset preloading
+    "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/web/assets@/assets"
+    "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/web/shaders@/shaders"
+    "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/web/tutorials@/tutorials"
+    
+    # SIMD and advanced features
+    "-msimd128"
+    "-msse4.2"
+    "-mavx"
+    
+    # Error handling
+    "-sDISABLE_EXCEPTION_CATCHING=0"
+    "-sNODEJS_CATCH_EXIT=0"
+    "-sNODEJS_CATCH_REJECTION=0"
+)
+
+# Apply all Emscripten flags
+string(REPLACE ";" " " EMSCRIPTEN_FLAGS_STR "${EMSCRIPTEN_COMPILE_FLAGS}")
+string(REPLACE ";" " " EMSCRIPTEN_LINK_STR "${EMSCRIPTEN_LINK_FLAGS}")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EMSCRIPTEN_FLAGS_STR}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${EMSCRIPTEN_LINK_STR}")
+
+# ==============================================================================
+# FEATURE CONFIGURATION FOR WEBASSEMBLY
+# ==============================================================================
+
+# Enable all ECScope features for web
+option(ECSCOPE_WEB_ENABLE_PHYSICS "Enable physics system for WebAssembly" ON)
+option(ECSCOPE_WEB_ENABLE_GRAPHICS "Enable graphics system for WebAssembly" ON)
+option(ECSCOPE_WEB_ENABLE_UI "Enable UI system for WebAssembly" ON)
+option(ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB "Enable performance lab for WebAssembly" ON)
+option(ECSCOPE_WEB_ENABLE_JOB_SYSTEM "Enable job system for WebAssembly" ON)
+option(ECSCOPE_WEB_ENABLE_TUTORIALS "Enable interactive tutorials" ON)
+option(ECSCOPE_WEB_ENABLE_DEMOS "Enable demo applications" ON)
+option(ECSCRIPTEN_WEB_ENABLE_PROFILING "Enable web-based profiling" ON)
+
+# WebAssembly-specific feature macros
+add_compile_definitions(
+    ECSCOPE_WEBASSEMBLY=1
+    ECSCOPE_WEB_BUILD=1
+    ECSCOPE_ENABLE_INSTRUMENTATION=1
+    ECSCOPE_ENABLE_MEMORY_ANALYSIS=1
+    ECSCOPE_ENABLE_HARDWARE_DETECTION=0  # Not available in WebAssembly
+    ECSCOPE_ENABLE_SIMD=1
+    ECSCOPE_ENABLE_LOCKFREE=1
+    EMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0
+)
+
+# Conditional feature flags
+if(ECSCOPE_WEB_ENABLE_PHYSICS)
+    add_compile_definitions(ECSCOPE_ENABLE_PHYSICS=1)
+endif()
+
+if(ECSCOPE_WEB_ENABLE_JOB_SYSTEM)
+    add_compile_definitions(ECSCOPE_ENABLE_JOB_SYSTEM=1)
+endif()
+
+if(ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB)
+    add_compile_definitions(ECSCOPE_ENABLE_PERFORMANCE_LAB=1)
+endif()
+
+# ==============================================================================
+# WEBASSEMBLY-SPECIFIC LIBRARY CONFIGURATION
+# ==============================================================================
+
+# Core ECScope library adapted for WebAssembly
+add_library(ecscope_web_core STATIC)
+
+target_sources(ecscope_web_core PRIVATE
+    # Core system (WebAssembly compatible)
+    src/core/log.cpp
+    src/core/time.cpp
+    src/core/id.cpp
+    
+    # ECS system
+    src/ecs/archetype.cpp
+    src/ecs/query.cpp
+    src/ecs/registry.cpp
+    src/ecs/relationships.cpp
+    src/ecs/system.cpp
+    
+    # Memory system
+    src/memory/mem_tracker.cpp
+    src/memory/memory_tracker_example.cpp
+    src/memory/allocators/arena.cpp
+    src/memory/allocators/pool_allocator.cpp
+    src/memory/pools/pool.cpp
+    src/memory/pools/hierarchical_pools.cpp
+    
+    # WebAssembly-specific implementations
+    web/src/web_platform_adapter.cpp
+    web/src/web_memory_manager.cpp
+    web/src/web_performance_monitor.cpp
+    web/src/web_error_handler.cpp
+)
+
+target_include_directories(ecscope_web_core
+    PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+)
+
+# Physics system for WebAssembly
+if(ECSCOPE_WEB_ENABLE_PHYSICS)
+    add_library(ecscope_web_physics STATIC)
+    
+    target_sources(ecscope_web_physics PRIVATE
+        # Core physics math
+        src/physics/math.cpp
+        src/physics/math3d.cpp
+        src/physics/simd_math.cpp
+        src/physics/simd_math3d.cpp
+        
+        # 2D physics system
+        src/physics/world.cpp
+        src/physics/collision.cpp
+        src/physics/broadphase.cpp
+        src/physics/narrowphase.cpp
+        src/physics/solver.cpp
+        src/physics/components.cpp
+        
+        # 3D physics system
+        src/physics/world3d.cpp
+        src/physics/collision3d.cpp
+        src/physics/collision3d_algorithms.cpp
+        
+        # WebAssembly physics adaptations
+        web/src/web_physics_adapter.cpp
+        web/src/web_physics_renderer.cpp
+    )
+    
+    target_include_directories(ecscope_web_physics
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/physics>
+    )
+    
+    target_link_libraries(ecscope_web_physics PUBLIC ecscope_web_core)
+endif()
+
+# Job system for WebAssembly (using Web Workers)
+if(ECSCOPE_WEB_ENABLE_JOB_SYSTEM)
+    add_library(ecscope_web_jobs STATIC)
+    
+    target_sources(ecscope_web_jobs PRIVATE
+        # Web Worker job system
+        web/src/web_worker_job_system.cpp
+        web/src/web_thread_pool.cpp
+        web/src/web_async_scheduler.cpp
+        web/src/web_job_profiler.cpp
+    )
+    
+    target_include_directories(ecscope_web_jobs
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_jobs PUBLIC ecscope_web_core)
+endif()
+
+# Graphics system for WebAssembly (WebGL 2.0)
+if(ECSCOPE_WEB_ENABLE_GRAPHICS)
+    add_library(ecscope_web_graphics STATIC)
+    
+    target_sources(ecscope_web_graphics PRIVATE
+        # WebGL 2.0 rendering system
+        web/src/webgl_context.cpp
+        web/src/webgl_renderer_2d.cpp
+        web/src/webgl_batch_renderer.cpp
+        web/src/webgl_shader_manager.cpp
+        web/src/webgl_texture_manager.cpp
+        web/src/webgl_buffer_manager.cpp
+        
+        # Canvas and input handling
+        web/src/web_canvas_manager.cpp
+        web/src/web_input_handler.cpp
+        web/src/web_asset_loader.cpp
+        
+        # Camera and viewport
+        web/src/webgl_camera_2d.cpp
+        web/src/webgl_viewport.cpp
+        
+        # Effects and post-processing
+        web/src/webgl_post_processor.cpp
+        web/src/webgl_particle_system.cpp
+    )
+    
+    target_include_directories(ecscope_web_graphics
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_graphics PUBLIC ecscope_web_core)
+endif()
+
+# UI system for WebAssembly (Web-native UI)
+if(ECSCOPE_WEB_ENABLE_UI)
+    add_library(ecscope_web_ui STATIC)
+    
+    target_sources(ecscope_web_ui PRIVATE
+        # Web UI system
+        web/src/web_ui_manager.cpp
+        web/src/web_ui_panels.cpp
+        web/src/web_ui_controls.cpp
+        web/src/web_ui_layout.cpp
+        
+        # ECS inspection panels
+        web/src/panels/web_panel_ecs_inspector.cpp
+        web/src/panels/web_panel_memory.cpp
+        web/src/panels/web_panel_performance.cpp
+        web/src/panels/web_panel_physics_debug.cpp
+        web/src/panels/web_panel_rendering_debug.cpp
+        
+        # Interactive components
+        web/src/web_ui_charts.cpp
+        web/src/web_ui_graphs.cpp
+        web/src/web_ui_diagnostics.cpp
+    )
+    
+    target_include_directories(ecscope_web_ui
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_ui PUBLIC 
+        ecscope_web_core 
+        ecscope_web_graphics
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:ecscope_web_physics>
+    )
+endif()
+
+# Performance lab for WebAssembly
+if(ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB)
+    add_library(ecscope_web_performance STATIC)
+    
+    target_sources(ecscope_web_performance PRIVATE
+        # Web performance monitoring
+        web/src/web_performance_lab.cpp
+        web/src/web_memory_profiler.cpp
+        web/src/web_cpu_profiler.cpp
+        web/src/web_gpu_profiler.cpp
+        
+        # Benchmarking system
+        web/src/web_benchmark_suite.cpp
+        web/src/web_benchmark_runner.cpp
+        web/src/web_benchmark_visualizer.cpp
+        
+        # Performance analysis
+        web/src/web_perf_analyzer.cpp
+        web/src/web_optimization_engine.cpp
+    )
+    
+    target_include_directories(ecscope_web_performance
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_performance PUBLIC ecscope_web_core)
+endif()
+
+# ==============================================================================
+# JAVASCRIPT/C++ BINDINGS (EMBIND)
+# ==============================================================================
+
+# Complete Embind bindings library
+add_library(ecscope_web_bindings STATIC)
+
+target_sources(ecscope_web_bindings PRIVATE
+    # Core ECS bindings
+    web/src/bindings/ecs_bindings.cpp
+    web/src/bindings/entity_bindings.cpp
+    web/src/bindings/component_bindings.cpp
+    web/src/bindings/system_bindings.cpp
+    web/src/bindings/registry_bindings.cpp
+    web/src/bindings/archetype_bindings.cpp
+    web/src/bindings/query_bindings.cpp
+    
+    # Memory management bindings
+    web/src/bindings/memory_bindings.cpp
+    web/src/bindings/allocator_bindings.cpp
+    web/src/bindings/pool_bindings.cpp
+    
+    # Physics bindings (if enabled)
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:web/src/bindings/physics_bindings.cpp>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:web/src/bindings/math_bindings.cpp>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:web/src/bindings/world_bindings.cpp>
+    
+    # Graphics bindings (if enabled)
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_GRAPHICS}>:web/src/bindings/graphics_bindings.cpp>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_GRAPHICS}>:web/src/bindings/renderer_bindings.cpp>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_GRAPHICS}>:web/src/bindings/shader_bindings.cpp>
+    
+    # Performance bindings (if enabled)
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}>:web/src/bindings/performance_bindings.cpp>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}>:web/src/bindings/profiler_bindings.cpp>
+    
+    # Utility bindings
+    web/src/bindings/utility_bindings.cpp
+    web/src/bindings/callback_bindings.cpp
+    web/src/bindings/type_conversion_bindings.cpp
+)
+
+target_include_directories(ecscope_web_bindings
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+)
+
+target_link_libraries(ecscope_web_bindings PUBLIC 
+    ecscope_web_core
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:ecscope_web_physics>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_GRAPHICS}>:ecscope_web_graphics>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_UI}>:ecscope_web_ui>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}>:ecscope_web_performance>
+    $<$<BOOL:${ECSCOPE_WEB_ENABLE_JOB_SYSTEM}>:ecscope_web_jobs>
+)
+
+# ==============================================================================
+# TUTORIAL AND DEMO SYSTEMS
+# ==============================================================================
+
+if(ECSCOPE_WEB_ENABLE_TUTORIALS)
+    add_library(ecscope_web_tutorials STATIC)
+    
+    target_sources(ecscope_web_tutorials PRIVATE
+        # Tutorial system
+        web/src/tutorials/tutorial_manager.cpp
+        web/src/tutorials/tutorial_engine.cpp
+        web/src/tutorials/tutorial_renderer.cpp
+        web/src/tutorials/tutorial_validator.cpp
+        
+        # Interactive tutorials
+        web/src/tutorials/ecs_basics_tutorial.cpp
+        web/src/tutorials/memory_management_tutorial.cpp
+        web/src/tutorials/physics_tutorial.cpp
+        web/src/tutorials/rendering_tutorial.cpp
+        web/src/tutorials/performance_tutorial.cpp
+        web/src/tutorials/advanced_patterns_tutorial.cpp
+        
+        # Tutorial content
+        web/src/tutorials/tutorial_content_loader.cpp
+        web/src/tutorials/tutorial_step_processor.cpp
+        web/src/tutorials/tutorial_progress_tracker.cpp
+    )
+    
+    target_include_directories(ecscope_web_tutorials
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_tutorials PUBLIC 
+        ecscope_web_core 
+        ecscope_web_ui 
+        ecscope_web_graphics
+    )
+endif()
+
+if(ECSCOPE_WEB_ENABLE_DEMOS)
+    add_library(ecscope_web_demos STATIC)
+    
+    target_sources(ecscope_web_demos PRIVATE
+        # Demo framework
+        web/src/demos/demo_manager.cpp
+        web/src/demos/demo_selector.cpp
+        web/src/demos/demo_controller.cpp
+        
+        # Complete demo applications
+        web/src/demos/particle_system_demo.cpp
+        web/src/demos/physics_sandbox_demo.cpp
+        web/src/demos/ecs_showcase_demo.cpp
+        web/src/demos/memory_visualization_demo.cpp
+        web/src/demos/performance_comparison_demo.cpp
+        web/src/demos/real_time_profiling_demo.cpp
+        web/src/demos/multi_threading_demo.cpp
+        web/src/demos/advanced_rendering_demo.cpp
+        
+        # Interactive features
+        web/src/demos/demo_ui_overlay.cpp
+        web/src/demos/demo_parameter_editor.cpp
+        web/src/demos/demo_metrics_display.cpp
+    )
+    
+    target_include_directories(ecscope_web_demos
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/web/include>
+    )
+    
+    target_link_libraries(ecscope_web_demos PUBLIC 
+        ecscope_web_core 
+        ecscope_web_graphics 
+        ecscope_web_ui
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:ecscope_web_physics>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}>:ecscope_web_performance>
+    )
+endif()
+
+# ==============================================================================
+# UNIFIED WEBASSEMBLY LIBRARY
+# ==============================================================================
+
+# Main ECScope WebAssembly library
+add_library(ecscope_web INTERFACE)
+
+target_link_libraries(ecscope_web 
+    INTERFACE
+        ecscope_web_core
+        ecscope_web_bindings
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_PHYSICS}>:ecscope_web_physics>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_GRAPHICS}>:ecscope_web_graphics>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_UI}>:ecscope_web_ui>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}>:ecscope_web_performance>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_JOB_SYSTEM}>:ecscope_web_jobs>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_TUTORIALS}>:ecscope_web_tutorials>
+        $<$<BOOL:${ECSCOPE_WEB_ENABLE_DEMOS}>:ecscope_web_demos>
+)
+
+# ==============================================================================
+# WEBASSEMBLY APPLICATIONS
+# ==============================================================================
+
+# Main WebAssembly application - Complete ECScope Web Platform
+add_executable(ecscope_web_app)
+
+target_sources(ecscope_web_app PRIVATE
+    web/src/app/main.cpp
+    web/src/app/web_app_controller.cpp
+    web/src/app/web_app_state_manager.cpp
+    web/src/app/web_app_renderer.cpp
+    web/src/app/web_app_input_handler.cpp
+    web/src/app/web_app_ui_manager.cpp
+)
+
+target_link_libraries(ecscope_web_app PRIVATE ecscope_web)
+
+# Educational demo application
+if(ECSCOPE_WEB_ENABLE_DEMOS AND ECSCOPE_WEB_ENABLE_TUTORIALS)
+    add_executable(ecscope_educational_platform)
+    
+    target_sources(ecscope_educational_platform PRIVATE
+        web/src/educational/educational_main.cpp
+        web/src/educational/learning_path_manager.cpp
+        web/src/educational/interactive_examples.cpp
+        web/src/educational/code_playground.cpp
+        web/src/educational/visualization_engine.cpp
+    )
+    
+    target_link_libraries(ecscope_educational_platform PRIVATE ecscope_web)
+endif()
+
+# Performance benchmarking application
+if(ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB)
+    add_executable(ecscope_performance_app)
+    
+    target_sources(ecscope_performance_app PRIVATE
+        web/src/performance/performance_main.cpp
+        web/src/performance/benchmark_controller.cpp
+        web/src/performance/results_visualizer.cpp
+        web/src/performance/comparison_engine.cpp
+    )
+    
+    target_link_libraries(ecscope_performance_app PRIVATE ecscope_web)
+endif()
+
+# Physics sandbox application
+if(ECSCOPE_WEB_ENABLE_PHYSICS AND ECSCOPE_WEB_ENABLE_GRAPHICS)
+    add_executable(ecscope_physics_sandbox)
+    
+    target_sources(ecscope_physics_sandbox PRIVATE
+        web/src/physics_sandbox/physics_sandbox_main.cpp
+        web/src/physics_sandbox/physics_scene_manager.cpp
+        web/src/physics_sandbox/physics_ui_controller.cpp
+        web/src/physics_sandbox/physics_renderer.cpp
+    )
+    
+    target_link_libraries(ecscope_physics_sandbox PRIVATE ecscope_web)
+endif()
+
+# ==============================================================================
+# CUSTOM BUILD TARGETS AND UTILITIES
+# ==============================================================================
+
+# Custom target to build all web assets
+add_custom_target(build_web_assets
+    COMMAND ${CMAKE_COMMAND} -E echo "Building web assets..."
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/assets 
+        ${CMAKE_CURRENT_BINARY_DIR}/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/shaders 
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/tutorials 
+        ${CMAKE_CURRENT_BINARY_DIR}/tutorials
+    COMMAND ${CMAKE_COMMAND} -E copy_directory 
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/demos 
+        ${CMAKE_CURRENT_BINARY_DIR}/demos
+    COMMENT "Copying web assets to build directory"
+)
+
+# Custom target to generate TypeScript definitions
+add_custom_target(generate_typescript_defs
+    COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/web/tools/generate_typescript_defs.js
+        --input ${CMAKE_CURRENT_SOURCE_DIR}/web/include
+        --output ${CMAKE_CURRENT_BINARY_DIR}/ecscope.d.ts
+    COMMENT "Generating TypeScript definitions"
+    DEPENDS ecscope_web_app
+)
+
+# Custom target for web development server
+add_custom_target(serve_web_dev
+    COMMAND python3 -m http.server 8080 --directory ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Starting development web server on http://localhost:8080"
+    DEPENDS ecscope_web_app build_web_assets
+)
+
+# Dependencies
+add_dependencies(ecscope_web_app build_web_assets)
+
+# ==============================================================================
+# BUILD SUMMARY
+# ==============================================================================
+
+message(STATUS "")
+message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "  ECScope WebAssembly ${PROJECT_VERSION} - Build Configuration")
+message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "WebAssembly Features:")
+message(STATUS "  Physics System: ${ECSCOPE_WEB_ENABLE_PHYSICS}")
+message(STATUS "  Graphics System: ${ECSCOPE_WEB_ENABLE_GRAPHICS}")
+message(STATUS "  UI System: ${ECSCOPE_WEB_ENABLE_UI}")
+message(STATUS "  Job System: ${ECSCOPE_WEB_ENABLE_JOB_SYSTEM}")
+message(STATUS "  Performance Lab: ${ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB}")
+message(STATUS "  Tutorials: ${ECSCOPE_WEB_ENABLE_TUTORIALS}")
+message(STATUS "  Demos: ${ECSCOPE_WEB_ENABLE_DEMOS}")
+message(STATUS "")
+message(STATUS "Build Applications:")
+message(STATUS "  ecscope_web_app - Main WebAssembly application")
+if(ECSCOPE_WEB_ENABLE_DEMOS AND ECSCOPE_WEB_ENABLE_TUTORIALS)
+    message(STATUS "  ecscope_educational_platform - Educational learning platform")
+endif()
+if(ECSCOPE_WEB_ENABLE_PERFORMANCE_LAB)
+    message(STATUS "  ecscope_performance_app - Performance benchmarking")
+endif()
+if(ECSCOPE_WEB_ENABLE_PHYSICS AND ECSCOPE_WEB_ENABLE_GRAPHICS)
+    message(STATUS "  ecscope_physics_sandbox - Interactive physics sandbox")
+endif()
+message(STATUS "")
+message(STATUS "Development Commands:")
+message(STATUS "  cmake --build . --target ecscope_web_app")
+message(STATUS "  cmake --build . --target serve_web_dev")
+message(STATUS "  cmake --build . --target generate_typescript_defs")
+message(STATUS "")
+message(STATUS "═══════════════════════════════════════════════════════════════")
