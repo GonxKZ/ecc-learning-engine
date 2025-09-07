@@ -1,0 +1,81 @@
+{
+    "name": "BasicComponentPlugin",
+    "display_name": "Basic Component Examples",
+    "description": "Educational plugin demonstrating fundamental ECS component creation",
+    "version": "1.0.0",
+    "author": "ECScope Educational Framework",
+    "license": "MIT",
+    "homepage": "https://github.com/ecscope/ecscope",
+    
+    "category": "Educational",
+    "priority": "Normal",
+    "tags": ["components", "ecs", "educational", "beginner"],
+    
+    "is_educational": true,
+    "educational_purpose": "Demonstrate basic ECS component development patterns",
+    "difficulty_level": "beginner",
+    "learning_objectives": [
+        "Understand ECS component architecture",
+        "Learn plugin development lifecycle",
+        "Practice component registration and usage",
+        "See real-world component examples"
+    ],
+    "related_concepts": [
+        "Data-Oriented Design",
+        "Component Composition",
+        "ECS Architecture",
+        "Memory Layout Optimization"
+    ],
+    
+    "compatibility": {
+        "min_engine_version": "1.0.0",
+        "max_engine_version": "2.0.0",
+        "supported_platforms": ["Windows", "Linux", "macOS"]
+    },
+    
+    "dependencies": [],
+    "conflicts": [],
+    
+    "permissions": {
+        "required_permissions": [
+            "ECSAccess",
+            "MemoryManagement"
+        ],
+        "requires_network_access": false,
+        "requires_file_system_access": false,
+        "requires_system_calls": false
+    },
+    
+    "resources": {
+        "max_memory_usage": 67108864,
+        "max_cpu_usage": 0.1,
+        "max_load_time": 5000
+    },
+    
+    "components": [
+        {
+            "name": "HealthComponent",
+            "description": "Basic health component with damage and regeneration",
+            "type": "Component",
+            "educational": true
+        },
+        {
+            "name": "ExperienceComponent", 
+            "description": "Experience and leveling component with configurable progression",
+            "type": "Component",
+            "educational": true
+        },
+        {
+            "name": "InventoryComponent",
+            "description": "Item inventory with weight and slot management",
+            "type": "Component", 
+            "educational": true
+        }
+    ],
+    
+    "build": {
+        "build_date": "2024-01-01T00:00:00Z",
+        "compiler": "auto",
+        "optimization_level": "O2"
+    }
+}

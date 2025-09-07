@@ -37,6 +37,7 @@ option(ECSCOPE_ENABLE_SCRIPTING "Enable Python/Lua scripting integration" OFF)
 option(ECSCOPE_ENABLE_JOB_SYSTEM "Enable work-stealing job system" ON)
 option(ECSCOPE_ENABLE_MEMORY_ANALYSIS "Enable advanced memory analysis tools" ON)
 option(ECSCOPE_ENABLE_PERFORMANCE_LAB "Enable performance laboratory" ON)
+option(ECSCOPE_ENABLE_PLUGIN_SYSTEM "Enable comprehensive plugin system with hot-reload" ON)
 
 # Platform & Performance Options
 option(ECSCOPE_ENABLE_SIMD "Enable SIMD optimizations (AVX2/SSE)" ON)
@@ -1049,6 +1050,118 @@ endif()
 if(ECSCOPE_HAS_GRAPHICS AND ECSCOPE_HAS_IMGUI)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_ui")
 endif()
+if(ECSCOPE_ENABLE_SCRIPTING)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_scripting")
+endif()
+
+# =============================================================================
+# PLUGIN SYSTEM LIBRARY - Complete Plugin Framework
+# =============================================================================
+
+if(ECSCOPE_ENABLE_PLUGIN_SYSTEM)
+    add_library(ecscope_plugin STATIC)
+    
+    target_sources(ecscope_plugin PRIVATE
+        # Core plugin system
+        src/plugin/plugin_core.cpp
+        src/plugin/plugin_manager.cpp
+        src/plugin/plugin_registry.cpp
+        src/plugin/plugin_security.cpp
+        src/plugin/plugin_api.cpp
+        
+        # Dynamic loading system
+        src/plugin/dynamic_loader.cpp
+        
+        # ECS integration
+        src/plugin/ecs_plugin_integration.cpp
+        
+        # Development tools
+        src/plugin/plugin_sdk.cpp
+        src/plugin/plugin_testing.cpp
+        
+        # Platform-specific implementations
+        $<$<PLATFORM_ID:Windows>:src/plugin/platform/windows_loader.cpp>
+        $<$<PLATFORM_ID:Linux>:src/plugin/platform/linux_loader.cpp>
+        $<$<PLATFORM_ID:Darwin>:src/plugin/platform/macos_loader.cpp>
+    )
+    
+    target_include_directories(ecscope_plugin
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/plugin>
+            $<INSTALL_INTERFACE:include/ecscope/plugin>
+    )
+    
+    # Platform-specific linking
+    if(WIN32)
+        target_link_libraries(ecscope_plugin PRIVATE kernel32 psapi)
+    elseif(UNIX)
+        target_link_libraries(ecscope_plugin PRIVATE ${CMAKE_DL_LIBS} pthread)
+    endif()
+    
+    target_link_libraries(ecscope_plugin 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+        PRIVATE
+            $<$<BOOL:${ECSCOPE_HAS_GRAPHICS}>:ecscope_graphics>
+    )
+    
+    target_compile_definitions(ecscope_plugin 
+        PUBLIC 
+            ECSCOPE_HAS_PLUGIN_SYSTEM=1
+            PLUGIN_API_VERSION=1
+        PRIVATE
+            $<$<CONFIG:Debug>:ECSCOPE_PLUGIN_DEBUG=1>
+    )
+    
+    # Add to available libraries
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_plugin")
+    
+    # Plugin system examples and demos
+    if(ECSCOPE_BUILD_EXAMPLES)
+        # Plugin system demonstration
+        add_executable(plugin_system_demo examples/plugin_system_demo.cpp)
+        target_link_libraries(plugin_system_demo 
+            PRIVATE 
+                ecscope_plugin 
+                ecscope_core
+                $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+        )
+        
+        # Example plugins (built as shared libraries)
+        add_library(basic_component_plugin SHARED examples/plugins/basic_component_plugin.cpp)
+        target_link_libraries(basic_component_plugin PRIVATE ecscope_plugin)
+        set_target_properties(basic_component_plugin PROPERTIES
+            PREFIX ""
+            SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+        )
+        
+        add_library(advanced_system_plugin SHARED examples/plugins/advanced_system_plugin.cpp)
+        target_link_libraries(advanced_system_plugin PRIVATE ecscope_plugin)
+        set_target_properties(advanced_system_plugin PROPERTIES
+            PREFIX ""
+            SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+        )
+        
+        # Copy plugin metadata files
+        configure_file(
+            "${CMAKE_SOURCE_DIR}/examples/plugins/basic_component_plugin.json"
+            "${CMAKE_BINARY_DIR}/plugins/basic_component_plugin.json"
+            COPYONLY
+        )
+        configure_file(
+            "${CMAKE_SOURCE_DIR}/examples/plugins/advanced_system_plugin.json"
+            "${CMAKE_BINARY_DIR}/plugins/advanced_system_plugin.json"
+            COPYONLY
+        )
+    endif()
+endif()
+
 if(ECSCOPE_ENABLE_SCRIPTING)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_scripting")
 endif()

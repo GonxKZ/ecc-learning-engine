@@ -1,0 +1,113 @@
+{
+    "name": "AdvancedSystemPlugin",
+    "display_name": "Advanced System Examples", 
+    "description": "Educational plugin demonstrating advanced ECS system development",
+    "version": "1.0.0",
+    "author": "ECScope Educational Framework",
+    "license": "MIT",
+    "homepage": "https://github.com/ecscope/ecscope",
+    
+    "category": "Educational",
+    "priority": "High",
+    "tags": ["systems", "ecs", "educational", "advanced", "multithreading", "ai", "performance"],
+    
+    "is_educational": true,
+    "educational_purpose": "Demonstrate advanced ECS system development patterns",
+    "difficulty_level": "advanced", 
+    "learning_objectives": [
+        "Understand multi-threaded system design",
+        "Learn performance optimization techniques",
+        "Master AI state machine patterns",
+        "Practice system dependencies management"
+    ],
+    "related_concepts": [
+        "Multi-threading",
+        "State Machines",
+        "Performance Optimization",
+        "System Architecture",
+        "AI Programming"
+    ],
+    
+    "compatibility": {
+        "min_engine_version": "1.0.0",
+        "max_engine_version": "2.0.0",
+        "supported_platforms": ["Windows", "Linux", "macOS"]
+    },
+    
+    "dependencies": [],
+    "conflicts": [],
+    
+    "permissions": {
+        "required_permissions": [
+            "ECSAccess",
+            "MemoryManagement",
+            "ThreadCreation"
+        ],
+        "requires_network_access": false,
+        "requires_file_system_access": false,
+        "requires_system_calls": false
+    },
+    
+    "resources": {
+        "max_memory_usage": 134217728,
+        "max_cpu_usage": 0.5,
+        "max_load_time": 5000
+    },
+    
+    "components": [
+        {
+            "name": "PositionComponent",
+            "description": "3D position component with movement tracking",
+            "type": "Component",
+            "educational": true
+        },
+        {
+            "name": "VelocityComponent",
+            "description": "Velocity component with physics integration", 
+            "type": "Component",
+            "educational": true
+        },
+        {
+            "name": "AIBehaviorComponent",
+            "description": "AI behavior component with state machine",
+            "type": "Component",
+            "educational": true
+        }
+    ],
+    
+    "systems": [
+        {
+            "name": "MovementSystem",
+            "description": "Multi-threaded movement processing system",
+            "type": "System",
+            "priority": "High",
+            "educational": true,
+            "features": [
+                "Multi-threaded processing",
+                "Worker thread pools", 
+                "Performance profiling",
+                "Educational instrumentation"
+            ]
+        },
+        {
+            "name": "AIBehaviorSystem", 
+            "description": "Advanced AI behavior system with state machines",
+            "type": "System",
+            "priority": "Normal",
+            "educational": true,
+            "features": [
+                "State machine patterns",
+                "Behavior trees",
+                "Reduced frequency updates",
+                "Educational state visualization"
+            ]
+        }
+    ],
+    
+    "build": {
+        "build_date": "2024-01-01T00:00:00Z",
+        "compiler": "auto", 
+        "optimization_level": "O2",
+        "threading": "enabled"
+    }
+}
