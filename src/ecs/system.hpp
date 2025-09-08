@@ -469,7 +469,7 @@ class SystemThreadPool {
 private:
     std::vector<std::thread> workers_;
     std::queue<std::function<void()>> tasks_;
-    std::mutex tasks_mutex_;
+    mutable std::mutex tasks_mutex_;
     std::condition_variable condition_;
     std::atomic<bool> stop_flag_;
     usize thread_count_;
@@ -525,6 +525,46 @@ private:
         ScheduledSystem(System* sys) 
             : system(sys), ready_to_execute(false), execution_complete(false)
             , scheduled_time(0.0), priority(0) {}
+            
+        // Copy constructor
+        ScheduledSystem(const ScheduledSystem& other) 
+            : system(other.system), dependencies(other.dependencies)
+            , ready_to_execute(other.ready_to_execute.load())
+            , execution_complete(other.execution_complete.load())
+            , scheduled_time(other.scheduled_time), priority(other.priority) {}
+            
+        // Move constructor
+        ScheduledSystem(ScheduledSystem&& other) noexcept
+            : system(other.system), dependencies(std::move(other.dependencies))
+            , ready_to_execute(other.ready_to_execute.load())
+            , execution_complete(other.execution_complete.load())
+            , scheduled_time(other.scheduled_time), priority(other.priority) {}
+            
+        // Copy assignment operator
+        ScheduledSystem& operator=(const ScheduledSystem& other) {
+            if (this != &other) {
+                system = other.system;
+                dependencies = other.dependencies;
+                ready_to_execute.store(other.ready_to_execute.load());
+                execution_complete.store(other.execution_complete.load());
+                scheduled_time = other.scheduled_time;
+                priority = other.priority;
+            }
+            return *this;
+        }
+        
+        // Move assignment operator
+        ScheduledSystem& operator=(ScheduledSystem&& other) noexcept {
+            if (this != &other) {
+                system = other.system;
+                dependencies = std::move(other.dependencies);
+                ready_to_execute.store(other.ready_to_execute.load());
+                execution_complete.store(other.execution_complete.load());
+                scheduled_time = other.scheduled_time;
+                priority = other.priority;
+            }
+            return *this;
+        }
     };
     
     std::vector<ScheduledSystem> scheduled_systems_;

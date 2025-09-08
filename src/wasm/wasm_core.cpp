@@ -1,383 +1,118 @@
-// =============================================================================
-// ECScope WebAssembly Core Implementation
-// =============================================================================
+/**
+ * @file wasm_core.cpp
+ * @brief ECScope WebAssembly Core Implementation - Clean and Secure
+ */
 
 #include "wasm_core.hpp"
+#include <iostream>
+
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
-#include <memory>
-#include <chrono>
+#else
+// Fallback for native builds
+#define EM_ASM(code) do { } while(0)
+#define EM_ASM_(code, ...) do { } while(0)
+#define EMSCRIPTEN_KEEPALIVE
+#endif
 
 namespace ecscope::wasm {
 
-// =============================================================================
-// WEBASSEMBLY CORE MANAGER
-// =============================================================================
+// Static member definitions
+std::unique_ptr<WasmCore> WasmCore::instance_;
+std::once_flag WasmCore::init_flag_;
 
-class WasmCoreManager {
-private:
-    static std::unique_ptr<WasmCoreManager> instance_;
-    WasmMemoryManager memory_manager_;
-    WasmPerformanceMonitor performance_monitor_;
-    WasmGraphicsContext graphics_context_;
-    bool initialized_ = false;
+WasmCore& WasmCore::instance() {
+    std::call_once(init_flag_, []() {
+        instance_ = std::unique_ptr<WasmCore>(new WasmCore());
+    });
+    return *instance_;
+}
 
-public:
-    static WasmCoreManager& getInstance() {
-        if (!instance_) {
-            instance_ = std::make_unique<WasmCoreManager>();
-        }
-        return *instance_;
+WasmCore::~WasmCore() {
+    shutdown();
+}
+
+bool WasmCore::initialize(const WasmConfig& config) {
+    std::lock_guard<std::mutex> lock(config_mutex_);
+    
+    if (initialized_.load()) {
+        log_info("WasmCore already initialized");
+        return true;
     }
-
-    bool initialize(const WasmConfig& config) {
-        if (initialized_) {
-            return true;
-        }
-
-        try {
-            // Initialize memory management
-            if (!memory_manager_.initialize(config.memory_config)) {
-                EM_ASM(console.error('Failed to initialize WebAssembly memory manager'));
-                return false;
-            }
-
-            // Initialize performance monitoring
-            if (!performance_monitor_.initialize(config.performance_config)) {
-                EM_ASM(console.error('Failed to initialize WebAssembly performance monitor'));
-                return false;
-            }
-
-            // Initialize graphics context if enabled
-            if (config.enable_graphics) {
-                if (!graphics_context_.initialize(config.graphics_config)) {
-                    EM_ASM(console.error('Failed to initialize WebAssembly graphics context'));
-                    return false;
-                }
-            }
-
-            initialized_ = true;
-            EM_ASM(console.log('ECScope WebAssembly core initialized successfully'));
-            return true;
-        }
-        catch (const std::exception& e) {
-            EM_ASM({
-                console.error('Exception during WebAssembly initialization: ' + UTF8ToString($0));
-            }, e.what());
-            return false;
-        }
+    
+    if (!config.is_valid()) {
+        log_error("Invalid WasmConfig provided");
+        return false;
     }
-
-    void shutdown() {
-        if (!initialized_) {
-            return;
-        }
-
-        graphics_context_.shutdown();
-        performance_monitor_.shutdown();
-        memory_manager_.shutdown();
-        
-        initialized_ = false;
-        EM_ASM(console.log('ECScope WebAssembly core shut down'));
-    }
-
-    WasmMemoryManager& getMemoryManager() { return memory_manager_; }
-    WasmPerformanceMonitor& getPerformanceMonitor() { return performance_monitor_; }
-    WasmGraphicsContext& getGraphicsContext() { return graphics_context_; }
-    bool isInitialized() const { return initialized_; }
-};
-
-std::unique_ptr<WasmCoreManager> WasmCoreManager::instance_ = nullptr;
-
-// =============================================================================
-// WEBASSEMBLY MEMORY MANAGER
-// =============================================================================
-
-bool WasmMemoryManager::initialize(const WasmMemoryConfig& config) {
+    
     config_ = config;
     
-    // Set up memory pools for different allocation patterns
-    small_block_pool_.reserve(config.small_block_pool_size);
-    medium_block_pool_.reserve(config.medium_block_pool_size);
-    large_block_pool_.reserve(config.large_block_pool_size);
-    
-    // Initialize memory tracking
-    total_allocated_ = 0;
-    peak_usage_ = 0;
-    allocation_count_ = 0;
-    
-    // Set up JavaScript memory reporting
+    // Initialize WebGL context if running in browser
+    #ifdef __EMSCRIPTEN__
     EM_ASM({
-        window.ECScope = window.ECScope || {};
-        window.ECScope.memoryStats = {
-            totalAllocated: 0,
-            peakUsage: 0,
-            allocationCount: 0,
-            activeBlocks: 0
-        };
-    });
+        try {
+            const canvas = document.getElementById(UTF8ToString($0));
+            if (!canvas) {
+                const newCanvas = document.createElement('canvas');
+                newCanvas.id = UTF8ToString($0);
+                newCanvas.width = 800;
+                newCanvas.height = 600;
+                document.body.appendChild(newCanvas);
+                console.log('Created WebGL canvas:', newCanvas.id);
+            }
+            
+            const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+            if (gl) {
+                window.ECScope = window.ECScope || {};
+                window.ECScope.gl = gl;
+                window.ECScope.canvas = canvas;
+                console.log('WebGL context initialized successfully');
+            } else {
+                console.error('Failed to initialize WebGL context');
+            }
+        } catch (e) {
+            console.error('WebGL initialization error:', e);
+        }
+    }, config_.canvas_id.c_str());
+    #endif
     
-    initialized_ = true;
+    initialized_.store(true);
+    log_info("WasmCore initialized successfully");
     return true;
 }
 
-void WasmMemoryManager::shutdown() {
-    // Clean up all memory pools
-    small_block_pool_.clear();
-    medium_block_pool_.clear();
-    large_block_pool_.clear();
+void WasmCore::shutdown() {
+    std::lock_guard<std::mutex> lock(config_mutex_);
     
-    // Report final memory statistics
-    reportMemoryStats();
-    initialized_ = false;
-}
-
-void* WasmMemoryManager::allocate(size_t size, size_t alignment) {
-    if (!initialized_) {
-        return nullptr;
-    }
-    
-    void* ptr = nullptr;
-    
-    // Choose appropriate pool based on size
-    if (size <= 64) {
-        ptr = allocateFromPool(small_block_pool_, size, alignment);
-    } else if (size <= 1024) {
-        ptr = allocateFromPool(medium_block_pool_, size, alignment);
-    } else {
-        ptr = allocateFromPool(large_block_pool_, size, alignment);
-    }
-    
-    if (ptr) {
-        total_allocated_ += size;
-        peak_usage_ = std::max(peak_usage_, total_allocated_);
-        allocation_count_++;
-        
-        // Update JavaScript memory stats periodically
-        if (allocation_count_ % 100 == 0) {
-            updateJavaScriptMemoryStats();
-        }
-    }
-    
-    return ptr;
-}
-
-void WasmMemoryManager::deallocate(void* ptr, size_t size) {
-    if (!ptr || !initialized_) {
+    if (!initialized_.load()) {
         return;
     }
     
-    // Return to appropriate pool
-    if (size <= 64) {
-        deallocateToPool(small_block_pool_, ptr, size);
-    } else if (size <= 1024) {
-        deallocateToPool(medium_block_pool_, ptr, size);
-    } else {
-        deallocateToPool(large_block_pool_, ptr, size);
-    }
-    
-    total_allocated_ -= size;
-}
-
-void WasmMemoryManager::reportMemoryStats() const {
+    #ifdef __EMSCRIPTEN__
     EM_ASM({
-        const stats = {
-            totalAllocated: $0,
-            peakUsage: $1,
-            allocationCount: $2,
-            activeBlocks: $3
-        };
-        console.log('ECScope Memory Statistics:', stats);
-        
-        if (window.ECScope && window.ECScope.onMemoryReport) {
-            window.ECScope.onMemoryReport(stats);
-        }
-    }, total_allocated_, peak_usage_, allocation_count_, getActiveBlockCount());
-}
-
-void WasmMemoryManager::updateJavaScriptMemoryStats() {
-    EM_ASM({
-        if (window.ECScope && window.ECScope.memoryStats) {
-            window.ECScope.memoryStats.totalAllocated = $0;
-            window.ECScope.memoryStats.peakUsage = $1;
-            window.ECScope.memoryStats.allocationCount = $2;
-            window.ECScope.memoryStats.activeBlocks = $3;
-        }
-    }, total_allocated_, peak_usage_, allocation_count_, getActiveBlockCount());
-}
-
-// =============================================================================
-// WEBASSEMBLY PERFORMANCE MONITOR
-// =============================================================================
-
-bool WasmPerformanceMonitor::initialize(const WasmPerformanceConfig& config) {
-    config_ = config;
-    
-    // Initialize timing structures
-    frame_times_.reserve(config.max_frame_samples);
-    timing_stack_.reserve(32);  // Support up to 32 nested timings
-    
-    // Set up performance reporting to JavaScript
-    EM_ASM({
-        window.ECScope = window.ECScope || {};
-        window.ECScope.performanceStats = {
-            frameTime: 0,
-            fps: 0,
-            averageFrameTime: 0,
-            worstFrameTime: 0,
-            memoryUsage: 0
-        };
-    });
-    
-    last_frame_time_ = std::chrono::high_resolution_clock::now();
-    initialized_ = true;
-    return true;
-}
-
-void WasmPerformanceMonitor::shutdown() {
-    frame_times_.clear();
-    timing_stack_.clear();
-    initialized_ = false;
-}
-
-void WasmPerformanceMonitor::beginFrame() {
-    if (!initialized_) return;
-    
-    auto current_time = std::chrono::high_resolution_clock::now();
-    auto frame_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        current_time - last_frame_time_).count();
-    
-    frame_times_.push_back(frame_duration);
-    if (frame_times_.size() > config_.max_frame_samples) {
-        frame_times_.erase(frame_times_.begin());
-    }
-    
-    last_frame_time_ = current_time;
-    
-    // Update JavaScript stats periodically
-    if (frame_times_.size() % 60 == 0) {  // Every 60 frames
-        updateJavaScriptPerformanceStats();
-    }
-}
-
-void WasmPerformanceMonitor::endFrame() {
-    // Currently handled in beginFrame for simplicity
-}
-
-void WasmPerformanceMonitor::beginTiming(const std::string& name) {
-    if (!initialized_) return;
-    
-    TimingEntry entry;
-    entry.name = name;
-    entry.start_time = std::chrono::high_resolution_clock::now();
-    timing_stack_.push_back(entry);
-}
-
-void WasmPerformanceMonitor::endTiming() {
-    if (!initialized_ || timing_stack_.empty()) return;
-    
-    auto end_time = std::chrono::high_resolution_clock::now();
-    TimingEntry& entry = timing_stack_.back();
-    
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        end_time - entry.start_time).count();
-    
-    // Store timing result
-    timing_results_[entry.name].push_back(duration);
-    
-    // Limit stored results
-    auto& results = timing_results_[entry.name];
-    if (results.size() > config_.max_timing_samples) {
-        results.erase(results.begin());
-    }
-    
-    timing_stack_.pop_back();
-}
-
-double WasmPerformanceMonitor::getAverageFrameTime() const {
-    if (frame_times_.empty()) return 0.0;
-    
-    double sum = 0.0;
-    for (auto time : frame_times_) {
-        sum += time;
-    }
-    return sum / frame_times_.size() / 1000.0;  // Convert to milliseconds
-}
-
-double WasmPerformanceMonitor::getCurrentFPS() const {
-    double avg_frame_time = getAverageFrameTime();
-    return avg_frame_time > 0.0 ? 1000.0 / avg_frame_time : 0.0;
-}
-
-void WasmPerformanceMonitor::updateJavaScriptPerformanceStats() {
-    double avg_frame_time = getAverageFrameTime();
-    double current_fps = getCurrentFPS();
-    double worst_frame_time = frame_times_.empty() ? 0.0 : 
-        *std::max_element(frame_times_.begin(), frame_times_.end()) / 1000.0;
-    
-    EM_ASM({
-        if (window.ECScope && window.ECScope.performanceStats) {
-            window.ECScope.performanceStats.frameTime = $0;
-            window.ECScope.performanceStats.fps = $1;
-            window.ECScope.performanceStats.averageFrameTime = $2;
-            window.ECScope.performanceStats.worstFrameTime = $3;
-        }
-    }, avg_frame_time, current_fps, avg_frame_time, worst_frame_time);
-}
-
-// =============================================================================
-// WEBASSEMBLY GRAPHICS CONTEXT
-// =============================================================================
-
-bool WasmGraphicsContext::initialize(const WasmGraphicsConfig& config) {
-    config_ = config;
-    
-    // Initialize WebGL context
-    EM_ASM({
-        const canvas = document.getElementById($0) || document.createElement('canvas');
-        if (!document.getElementById($0)) {
-            canvas.id = UTF8ToString($0);
-            canvas.width = $1;
-            canvas.height = $2;
-            document.body.appendChild(canvas);
-        }
-        
-        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-        if (!gl) {
-            console.error('Failed to initialize WebGL context');
-        } else {
-            console.log('WebGL context initialized successfully');
-            window.ECScope = window.ECScope || {};
-            window.ECScope.gl = gl;
-            window.ECScope.canvas = canvas;
-        }
-    }, config.canvas_id.c_str(), config.width, config.height);
-    
-    initialized_ = true;
-    return true;
-}
-
-void WasmGraphicsContext::shutdown() {
-    if (!initialized_) return;
-    
-    EM_ASM({
-        if (window.ECScope && window.ECScope.gl) {
-            // Clean up WebGL resources
-            const gl = window.ECScope.gl;
-            // Additional cleanup can be added here
-            
+        if (window.ECScope) {
             delete window.ECScope.gl;
             delete window.ECScope.canvas;
+            delete window.ECScope;
+            console.log('WebGL context cleaned up');
         }
     });
+    #endif
     
-    initialized_ = false;
+    initialized_.store(false);
+    log_info("WasmCore shutdown completed");
 }
 
-void WasmGraphicsContext::beginFrame() {
-    if (!initialized_) return;
+void WasmCore::begin_frame() {
+    if (!initialized_.load()) {
+        return;
+    }
     
+    frame_start_time_ = std::chrono::high_resolution_clock::now();
+    
+    #ifdef __EMSCRIPTEN__
     EM_ASM({
         if (window.ECScope && window.ECScope.gl) {
             const gl = window.ECScope.gl;
@@ -386,81 +121,131 @@ void WasmGraphicsContext::beginFrame() {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         }
     });
+    #endif
 }
 
-void WasmGraphicsContext::endFrame() {
-    if (!initialized_) return;
+void WasmCore::end_frame() {
+    if (!initialized_.load()) {
+        return;
+    }
     
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+        end_time - frame_start_time_).count();
+    double frame_time_ms = duration / 1000.0;
+    
+    metrics_.add_frame_time(frame_time_ms);
+    
+    #ifdef __EMSCRIPTEN__
     EM_ASM({
         if (window.ECScope && window.ECScope.gl) {
             const gl = window.ECScope.gl;
             gl.flush();
         }
     });
+    #endif
 }
 
-// =============================================================================
-// C++ API FUNCTIONS
-// =============================================================================
+void WasmCore::log_info(const std::string& message) const {
+    #ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.log('[ECScope WASM] ' + UTF8ToString($0));
+    }, message.c_str());
+    #else
+    std::cout << "[ECScope WASM] " << message << std::endl;
+    #endif
+}
 
+void WasmCore::log_error(const std::string& message) const {
+    #ifdef __EMSCRIPTEN__
+    EM_ASM({
+        console.error('[ECScope WASM ERROR] ' + UTF8ToString($0));
+    }, message.c_str());
+    #else
+    std::cerr << "[ECScope WASM ERROR] " << message << std::endl;
+    #endif
+}
+
+} // namespace ecscope::wasm
+
+// C API implementation
 extern "C" {
 
 EMSCRIPTEN_KEEPALIVE
-bool ecscope_wasm_initialize(const char* config_json) {
-    WasmConfig config;
-    // Parse JSON config (simplified for this example)
-    config.enable_graphics = true;
-    config.memory_config.small_block_pool_size = 1000;
-    config.memory_config.medium_block_pool_size = 500;
-    config.memory_config.large_block_pool_size = 100;
-    config.performance_config.max_frame_samples = 300;
-    config.performance_config.max_timing_samples = 100;
-    config.graphics_config.canvas_id = "ecscope-canvas";
-    config.graphics_config.width = 800;
-    config.graphics_config.height = 600;
-    
-    return WasmCoreManager::getInstance().initialize(config);
+bool ecscope_wasm_initialize() {
+    try {
+        return ecscope::wasm::WasmCore::instance().initialize();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM initialization error: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 void ecscope_wasm_shutdown() {
-    WasmCoreManager::getInstance().shutdown();
+    try {
+        ecscope::wasm::WasmCore::instance().shutdown();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM shutdown error: " << e.what() << std::endl;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 bool ecscope_wasm_is_initialized() {
-    return WasmCoreManager::getInstance().isInitialized();
+    try {
+        return ecscope::wasm::WasmCore::instance().is_initialized();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM status check error: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 void ecscope_wasm_begin_frame() {
-    auto& core = WasmCoreManager::getInstance();
-    core.getPerformanceMonitor().beginFrame();
-    core.getGraphicsContext().beginFrame();
+    try {
+        ecscope::wasm::WasmCore::instance().begin_frame();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM begin frame error: " << e.what() << std::endl;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 void ecscope_wasm_end_frame() {
-    auto& core = WasmCoreManager::getInstance();
-    core.getGraphicsContext().endFrame();
-    core.getPerformanceMonitor().endFrame();
-}
-
-EMSCRIPTEN_KEEPALIVE
-void ecscope_wasm_report_memory_stats() {
-    WasmCoreManager::getInstance().getMemoryManager().reportMemoryStats();
+    try {
+        ecscope::wasm::WasmCore::instance().end_frame();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM end frame error: " << e.what() << std::endl;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 double ecscope_wasm_get_fps() {
-    return WasmCoreManager::getInstance().getPerformanceMonitor().getCurrentFPS();
+    try {
+        return ecscope::wasm::WasmCore::instance().metrics().fps();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM FPS error: " << e.what() << std::endl;
+        return 0.0;
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 double ecscope_wasm_get_frame_time() {
-    return WasmCoreManager::getInstance().getPerformanceMonitor().getAverageFrameTime();
+    try {
+        return ecscope::wasm::WasmCore::instance().metrics().average_frame_time();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM frame time error: " << e.what() << std::endl;
+        return 0.0;
+    }
 }
 
-}  // extern "C"
+EMSCRIPTEN_KEEPALIVE
+size_t ecscope_wasm_get_memory_usage() {
+    try {
+        return ecscope::wasm::WasmCore::instance().allocated_memory();
+    } catch (const std::exception& e) {
+        std::cerr << "WASM memory usage error: " << e.what() << std::endl;
+        return 0;
+    }
+}
 
-}  // namespace ecscope::wasm
+} // extern "C"

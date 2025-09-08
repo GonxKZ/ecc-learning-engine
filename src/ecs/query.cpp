@@ -65,7 +65,8 @@ std::optional<std::span<const QueryResultEntry>> QueryCache::get_cached_result(u
     }
     
     // Update access statistics
-    cached_result.last_access_time = core::get_time_seconds();
+    static core::Timer query_timer;
+    cached_result.last_access_time = query_timer.elapsed_seconds();
     cached_result.access_count++;
     
     cache_hits_.fetch_add(1, std::memory_order_relaxed);
@@ -103,7 +104,8 @@ void QueryCache::cache_result(u64 query_hash, const ComponentSignature& signatur
     cached_result->entries.assign(entries.begin(), entries.end());
     cached_result->query_signature = signature;
     cached_result->archetype_ids = archetype_ids;
-    cached_result->creation_time = core::get_time_seconds();
+    static core::Timer query_timer2;
+    cached_result->creation_time = query_timer2.elapsed_seconds();
     cached_result->last_access_time = cached_result->creation_time;
     cached_result->access_count = 0;
     cached_result->is_valid = true;
@@ -212,7 +214,8 @@ bool QueryCache::is_cache_valid(const CachedQueryResult& cache) const noexcept {
         return false;
     }
     
-    f64 current_time = core::get_time_seconds();
+    static core::Timer query_timer3;
+    f64 current_time = query_timer3.elapsed_seconds();
     if (current_time - cache.creation_time > config_.cache_timeout) {
         return false;
     }
@@ -221,7 +224,8 @@ bool QueryCache::is_cache_valid(const CachedQueryResult& cache) const noexcept {
 }
 
 void QueryCache::remove_expired_caches() {
-    f64 current_time = core::get_time_seconds();
+    static core::Timer query_timer4;
+    f64 current_time = query_timer4.elapsed_seconds();
     
     auto it = cached_results_.begin();
     while (it != cached_results_.end()) {

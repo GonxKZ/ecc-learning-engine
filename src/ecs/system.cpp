@@ -636,7 +636,8 @@ void SystemManager::initialize_all_systems() {
     LOG_INFO("Initializing all systems...");
     
     is_running_.store(true);
-    total_time_ = core::get_time_seconds();
+    static core::Timer system_timer;
+    total_time_ = system_timer.elapsed_seconds();
     
     // Initialize systems in dependency order
     execute_phase(SystemPhase::PreInitialize, 0.0);

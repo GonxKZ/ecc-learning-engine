@@ -10,6 +10,11 @@
 #include <memory>
 #include <cstring>
 
+// Forward declarations for memory namespace
+namespace ecscope::memory {
+    class ArenaAllocator;
+}
+
 namespace ecscope::ecs {
 
 // Forward declarations
@@ -148,10 +153,10 @@ public:
             void* last = static_cast<byte*>(data_) + ((size_ - 1) * element_size_);
             
             // Use temporary buffer for swap
-            byte temp[element_size_];
-            std::memcpy(temp, target, element_size_);
+            std::unique_ptr<byte[]> temp(new byte[element_size_]);
+            std::memcpy(temp.get(), target, element_size_);
             std::memcpy(target, last, element_size_);
-            std::memcpy(last, temp, element_size_);
+            std::memcpy(last, temp.get(), element_size_);
         }
         
         --size_;

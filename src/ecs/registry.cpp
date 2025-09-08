@@ -26,7 +26,7 @@ Registry& get_registry() {
 
 void set_registry(std::unique_ptr<Registry> registry) {
     if (registry) {
-        LOG_INFO("ECS Registry set to custom instance: '{}'", registry->name());
+        LOG_INFO("ECS Registry set to custom instance: '" + registry->name() + "'");
     }
     g_registry = std::move(registry);
 }
@@ -66,11 +66,10 @@ void Registry::initialize_allocators() {
             );
             
             if (enable_educational_logging_) {
-                LOG_INFO("Arena allocator initialized: {} MB", 
-                        allocator_config_.archetype_arena_size / (1024 * 1024));
+                LOG_INFO("Arena allocator initialized: " + std::to_string(allocator_config_.archetype_arena_size / (1024 * 1024)) + " MB");
             }
         } catch (const std::exception& e) {
-            LOG_ERROR("Failed to initialize arena allocator: {}", e.what());
+            LOG_ERROR("Failed to initialize arena allocator: " + std::string(e.what()));
             allocator_config_.enable_archetype_arena = false;
         }
     }
@@ -87,11 +86,10 @@ void Registry::initialize_allocators() {
             );
             
             if (enable_educational_logging_) {
-                LOG_INFO("Entity pool allocator initialized: {} entities", 
-                        allocator_config_.entity_pool_capacity);
+                LOG_INFO("Entity pool allocator initialized: " + std::to_string(allocator_config_.entity_pool_capacity) + " entities");
             }
         } catch (const std::exception& e) {
-            LOG_ERROR("Failed to initialize entity pool allocator: {}", e.what());
+            LOG_ERROR("Failed to initialize entity pool allocator: " + std::string(e.what()));
             allocator_config_.enable_entity_pool = false;
         }
     }
@@ -116,7 +114,7 @@ void Registry::initialize_allocators() {
                 LOG_INFO("Hybrid PMR resource initialized");
             }
         } catch (const std::exception& e) {
-            LOG_ERROR("Failed to initialize hybrid PMR resource: {}", e.what());
+            LOG_ERROR("Failed to initialize hybrid PMR resource: " + std::string(e.what()));
             pmr_resource_ = std::pmr::get_default_resource();
             allocator_config_.enable_pmr_containers = false;
         }
@@ -142,7 +140,7 @@ void Registry::initialize_memory_tracking() {
         memory::MemoryTracker::initialize(tracker_config);
         
         if (enable_educational_logging_) {
-            LOG_INFO("Memory tracking initialized for registry '{}'", registry_name_);
+            LOG_INFO("Memory tracking initialized for registry '" + registry_name_ + "'");
         }
     }
 }
@@ -150,7 +148,7 @@ void Registry::initialize_memory_tracking() {
 // Cleanup memory tracking
 void Registry::cleanup_memory_tracking() {
     if (memory_stats_ && enable_educational_logging_) {
-        LOG_INFO("Cleaning up memory tracking for registry '{}'", registry_name_);
+        LOG_INFO("Cleaning up memory tracking for registry '" + registry_name_ + "'");
     }
     memory_stats_.reset();
 }
@@ -161,7 +159,7 @@ void Registry::update_pmr_resource() {
         pmr_resource_ = hybrid_resource_.get();
         
         if (enable_educational_logging_) {
-            LOG_INFO("Updated PMR resource to use hybrid allocator for registry '{}'", registry_name_);
+            LOG_INFO("Updated PMR resource to use hybrid allocator for registry '" + registry_name_ + "'");
         }
     }
     // Note: PMR containers are already constructed, so we can't change their resource after construction
