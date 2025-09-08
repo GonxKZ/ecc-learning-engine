@@ -1,6 +1,0 @@
-Run: 17513651945
-Workflow: ECScope Comprehensive Test Suite
-Commit: d2b03537ce222bc27949f86e689a1a62f452f568
-Date: 2025-09-06T11:01:04Z
-Log file: failed-workflow-logs/run-17513651945.log
----- Líneas con errores (heurística) ----
