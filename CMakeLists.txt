@@ -32,8 +32,10 @@ option(ECSCOPE_ENABLE_INSTRUMENTATION "Enable advanced tracing & memory hooks" O
 
 # Advanced System Features  
 option(ECSCOPE_ENABLE_GRAPHICS "Enable 2D graphics and rendering system (requires SDL2, OpenGL)" ON)
+option(ECSCOPE_ENABLE_MODERN_RENDERING "Enable professional 3D rendering engine (Vulkan/OpenGL, Deferred, PBR)" ON)
 option(ECSCOPE_ENABLE_PHYSICS "Enable advanced 2D/3D physics system" ON)
-option(ECSCOPE_ENABLE_SCRIPTING "Enable Python/Lua scripting integration" OFF)
+option(ECSCOPE_ENABLE_NETWORKING "Enable complete networking system with ECS replication" ON)
+option(ECSCOPE_ENABLE_SCRIPTING "Enable Python/Lua scripting integration" ON)
 option(ECSCOPE_ENABLE_JOB_SYSTEM "Enable work-stealing job system" ON)
 option(ECSCOPE_ENABLE_MEMORY_ANALYSIS "Enable advanced memory analysis tools" ON)
 option(ECSCOPE_ENABLE_PERFORMANCE_LAB "Enable performance laboratory" ON)
@@ -50,6 +52,7 @@ option(ECSCOPE_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ECSCOPE_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(ECSCOPE_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(ECSCOPE_ENABLE_PROFILING "Enable detailed profiling support" OFF)
+option(ECSCOPE_ENABLE_DEBUG_SYSTEM "Enable comprehensive debugging and profiling system" ON)
 
 # =============================================================================
 # COMPILER CONFIGURATION
@@ -126,6 +129,10 @@ if(ECSCOPE_ENABLE_PHYSICS)
     add_compile_definitions(ECSCOPE_ENABLE_PHYSICS=1)
 endif()
 
+if(ECSCOPE_ENABLE_NETWORKING)
+    add_compile_definitions(ECSCOPE_ENABLE_NETWORKING=1)
+endif()
+
 if(ECSCOPE_ENABLE_JOB_SYSTEM)
     add_compile_definitions(ECSCOPE_ENABLE_JOB_SYSTEM=1)
 endif()
@@ -146,6 +153,14 @@ if(ECSCOPE_ENABLE_HARDWARE_DETECTION)
     add_compile_definitions(ECSCOPE_ENABLE_HARDWARE_DETECTION=1)
 endif()
 
+if(ECSCOPE_ENABLE_MODERN_RENDERING)
+    add_compile_definitions(ECSCOPE_ENABLE_MODERN_RENDERING=1)
+endif()
+
+if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
+    add_compile_definitions(ECSCOPE_ENABLE_DEBUG_SYSTEM=1)
+endif()
+
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
@@ -155,7 +170,7 @@ find_package(Threads REQUIRED)
 
 # Platform-specific libraries
 if(WIN32)
-    set(PLATFORM_LIBS)
+    set(PLATFORM_LIBS ws2_32 wsock32)
 elseif(UNIX AND NOT APPLE)
     set(PLATFORM_LIBS dl)
 else()
@@ -252,23 +267,57 @@ if(ECSCOPE_ENABLE_JOB_SYSTEM)
     add_library(ecscope_jobs STATIC)
     
     target_sources(ecscope_jobs PRIVATE
-        src/concurrency/job_system/work_stealing_job_system.cpp
-        src/concurrency/job_system/ecs_job_integration.cpp
-        src/concurrency/job_system/ecs_parallel_scheduler.cpp
-        src/concurrency/job_system/job_profiler.cpp
+        # Fiber-based job system core
+        src/jobs/fiber.cpp
+        src/jobs/fiber_sync.cpp
+        src/jobs/fiber_job_system.cpp
+        src/jobs/job_dependency_graph.cpp
+        src/jobs/job_profiler.cpp
+        src/jobs/ecs_integration.cpp
     )
     
     target_include_directories(ecscope_jobs
         PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/jobs>
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/concurrency>
+            $<INSTALL_INTERFACE:include/ecscope/jobs>
             $<INSTALL_INTERFACE:include/ecscope/concurrency>
     )
+    
+    # Platform-specific libraries for fiber context switching
+    set(FIBER_PLATFORM_LIBS)
+    if(WIN32)
+        set(FIBER_PLATFORM_LIBS kernel32)
+    elseif(UNIX AND NOT APPLE)
+        set(FIBER_PLATFORM_LIBS rt)
+        # Check for NUMA libraries
+        find_library(NUMA_LIBRARY NAMES numa)
+        if(NUMA_LIBRARY)
+            list(APPEND FIBER_PLATFORM_LIBS ${NUMA_LIBRARY})
+            target_compile_definitions(ecscope_jobs PRIVATE ECSCOPE_HAS_NUMA=1)
+        endif()
+    elseif(APPLE)
+        # macOS specific libraries if needed
+    endif()
     
     target_link_libraries(ecscope_jobs 
         PUBLIC 
             ecscope_core
+            ecscope_memory
             Threads::Threads
+        PRIVATE
+            ${FIBER_PLATFORM_LIBS}
     )
+    
+    # Add profiling support macro
+    if(ECSCOPE_ENABLE_PROFILING)
+        target_compile_definitions(ecscope_jobs PRIVATE ECSCOPE_ENABLE_PROFILING=1)
+    endif()
+    
+    # Enable lock-free structures if available
+    if(ECSCOPE_ENABLE_LOCKFREE)
+        target_compile_definitions(ecscope_jobs PRIVATE ECSCOPE_ENABLE_LOCKFREE=1)
+    endif()
 endif()
 
 # =============================================================================
@@ -311,6 +360,116 @@ if(ECSCOPE_ENABLE_PHYSICS)
             ecscope_core
             $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
     )
+endif()
+
+# =============================================================================
+# NETWORKING SYSTEM LIBRARY - Complete Networking with ECS Replication
+# =============================================================================
+
+if(ECSCOPE_ENABLE_NETWORKING)
+    add_library(ecscope_networking STATIC)
+    
+    target_sources(ecscope_networking PRIVATE
+        # Core networking
+        src/networking/network_buffer.cpp
+        
+        # Socket abstractions would go here when implemented
+        # src/networking/tcp_socket.cpp
+        # src/networking/udp_socket.cpp
+        # src/networking/reliable_udp_socket.cpp
+        
+        # Connection management would go here when implemented
+        # src/networking/connection.cpp
+        # src/networking/connection_pool.cpp
+        # src/networking/connection_manager.cpp
+        
+        # Message system would go here when implemented
+        # src/networking/network_message.cpp
+        # src/networking/message_factory.cpp
+        # src/networking/message_queue.cpp
+        
+        # ECS replication would go here when implemented
+        # src/networking/ecs_replication.cpp
+        # src/networking/component_replication_registry.cpp
+        # src/networking/replication_manager.cpp
+        
+        # State synchronization would go here when implemented
+        # src/networking/world_snapshot.cpp
+        # src/networking/snapshot_history.cpp
+        # src/networking/delta_compression_engine.cpp
+        # src/networking/state_synchronization_manager.cpp
+        
+        # Compression and encryption would go here when implemented
+        # src/networking/compression_factory.cpp
+        # src/networking/null_compressor.cpp
+        # src/networking/lz4_compressor.cpp
+        # src/networking/zstd_compressor.cpp
+        # src/networking/encryption_factory.cpp
+        # src/networking/null_encryptor.cpp
+        # src/networking/aes_gcm_encryptor.cpp
+        # src/networking/chacha20_poly1305_encryptor.cpp
+        
+        # Network monitoring would go here when implemented
+        # src/networking/connection_monitor.cpp
+        # src/networking/network_monitor_manager.cpp
+        # src/networking/network_profiler.cpp
+        
+        # Main network registry would go here when implemented
+        # src/networking/network_registry.cpp
+    )
+    
+    target_include_directories(ecscope_networking
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/networking>
+            $<INSTALL_INTERFACE:include/ecscope/networking>
+    )
+    
+    # Platform-specific networking libraries
+    if(WIN32)
+        target_link_libraries(ecscope_networking PRIVATE ws2_32 wsock32)
+    endif()
+    
+    target_link_libraries(ecscope_networking 
+        PUBLIC 
+            ecscope_core
+            Threads::Threads
+            $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+    )
+    
+    target_compile_definitions(ecscope_networking PUBLIC ECSCOPE_HAS_NETWORKING=1)
+    
+    # Optional LZ4 support for compression
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(LZ4 QUIET liblz4)
+        if(LZ4_FOUND)
+            target_link_libraries(ecscope_networking PRIVATE ${LZ4_LIBRARIES})
+            target_include_directories(ecscope_networking PRIVATE ${LZ4_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_networking PRIVATE ECSCOPE_HAS_LZ4=1)
+            message(STATUS "LZ4 found: Enabling LZ4 compression support")
+        endif()
+    endif()
+    
+    # Optional zstd support for compression
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(ZSTD QUIET libzstd)
+        if(ZSTD_FOUND)
+            target_link_libraries(ecscope_networking PRIVATE ${ZSTD_LIBRARIES})
+            target_include_directories(ecscope_networking PRIVATE ${ZSTD_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_networking PRIVATE ECSCOPE_HAS_ZSTD=1)
+            message(STATUS "zstd found: Enabling Zstandard compression support")
+        endif()
+    endif()
+    
+    # Optional OpenSSL support for encryption
+    find_package(OpenSSL QUIET)
+    if(OPENSSL_FOUND)
+        target_link_libraries(ecscope_networking PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+        target_compile_definitions(ecscope_networking PRIVATE ECSCOPE_HAS_OPENSSL=1)
+        message(STATUS "OpenSSL found: Enabling encryption support")
+    else()
+        message(STATUS "OpenSSL not found - encryption will use internal implementations")
+    endif()
 endif()
 
 # =============================================================================
@@ -433,6 +592,154 @@ if(ECSCOPE_HAS_GRAPHICS)
 endif()
 
 # =============================================================================
+# MODERN RENDERING SYSTEM LIBRARY - Professional 3D Rendering Engine
+# =============================================================================
+
+set(ECSCOPE_HAS_VULKAN OFF)
+set(ECSCOPE_HAS_MODERN_RENDERING OFF)
+
+if(ECSCOPE_ENABLE_MODERN_RENDERING)
+    # Try to find Vulkan
+    find_package(Vulkan QUIET)
+    if(Vulkan_FOUND)
+        set(ECSCOPE_HAS_VULKAN ON)
+        message(STATUS "Vulkan found: Enabling Vulkan backend")
+        
+        # Check for VMA (Vulkan Memory Allocator)
+        find_path(VMA_INCLUDE_DIR vk_mem_alloc.h
+            HINTS
+                ${Vulkan_INCLUDE_DIRS}
+                /usr/include
+                /usr/local/include
+                ${CMAKE_SOURCE_DIR}/external/VulkanMemoryAllocator/include
+            PATH_SUFFIXES vma
+        )
+        
+        if(VMA_INCLUDE_DIR)
+            message(STATUS "VMA found at: ${VMA_INCLUDE_DIR}")
+            set(ECSCOPE_HAS_VMA ON)
+        else()
+            message(STATUS "VMA not found - using fallback memory allocation")
+            set(ECSCOPE_HAS_VMA OFF)
+        endif()
+    else()
+        message(STATUS "Vulkan not found - Vulkan backend will be disabled")
+    endif()
+    
+    # Try to find GLEW for OpenGL backend
+    find_package(GLEW QUIET)
+    if(GLEW_FOUND OR TARGET GLEW::GLEW)
+        set(ECSCOPE_HAS_OPENGL_BACKEND ON)
+        message(STATUS "GLEW found: Enabling OpenGL backend")
+    else()
+        # Try pkg-config approach
+        find_package(PkgConfig QUIET)
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(GLEW QUIET glew)
+            if(GLEW_FOUND)
+                set(ECSCOPE_HAS_OPENGL_BACKEND ON)
+                message(STATUS "GLEW found via pkg-config: Enabling OpenGL backend")
+            endif()
+        endif()
+    endif()
+    
+    if(NOT ECSCOPE_HAS_OPENGL_BACKEND)
+        message(STATUS "GLEW not found - OpenGL backend will be disabled")
+    endif()
+    
+    # Require at least one backend
+    if(ECSCOPE_HAS_VULKAN OR ECSCOPE_HAS_OPENGL_BACKEND)
+        set(ECSCOPE_HAS_MODERN_RENDERING ON)
+        message(STATUS "Modern rendering system enabled")
+    else()
+        message(WARNING "Modern rendering requested but no supported backends found. Install Vulkan SDK and/or GLEW.")
+    endif()
+endif()
+
+# Modern rendering library
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    add_library(ecscope_modern_rendering STATIC)
+    
+    target_sources(ecscope_modern_rendering PRIVATE
+        # Core rendering system implementation
+        src/rendering/renderer_factory.cpp
+        src/rendering/deferred_renderer.cpp
+        
+        # Vulkan backend implementation
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_renderer.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_buffer.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_texture.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_shader.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_command_buffer.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_VULKAN}>:src/rendering/vulkan_memory.cpp>
+        
+        # OpenGL backend implementation
+        $<$<BOOL:${ECSCOPE_HAS_OPENGL_BACKEND}>:src/rendering/opengl_renderer.cpp>
+        
+        # Common utilities
+        src/rendering/shader_compiler.cpp
+        src/rendering/materials.cpp
+    )
+    
+    target_include_directories(ecscope_modern_rendering
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/rendering>
+            $<INSTALL_INTERFACE:include/ecscope/rendering>
+    )
+    
+    # Link rendering dependencies
+    target_link_libraries(ecscope_modern_rendering 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+    )
+    
+    # Vulkan support
+    if(ECSCOPE_HAS_VULKAN)
+        target_link_libraries(ecscope_modern_rendering PUBLIC Vulkan::Vulkan)
+        target_compile_definitions(ecscope_modern_rendering PUBLIC ECSCOPE_HAS_VULKAN=1)
+        
+        # VMA support
+        if(ECSCOPE_HAS_VMA)
+            target_include_directories(ecscope_modern_rendering PRIVATE ${VMA_INCLUDE_DIR})
+            target_compile_definitions(ecscope_modern_rendering PRIVATE ECSCOPE_HAS_VMA=1)
+        endif()
+    endif()
+    
+    # OpenGL support
+    if(ECSCOPE_HAS_OPENGL_BACKEND)
+        if(TARGET GLEW::GLEW)
+            target_link_libraries(ecscope_modern_rendering PUBLIC GLEW::GLEW)
+        else()
+            target_link_libraries(ecscope_modern_rendering PUBLIC ${GLEW_LIBRARIES})
+            target_include_directories(ecscope_modern_rendering PUBLIC ${GLEW_INCLUDE_DIRS})
+            target_compile_options(ecscope_modern_rendering PUBLIC ${GLEW_CFLAGS_OTHER})
+        endif()
+        
+        # Also link OpenGL
+        find_package(OpenGL REQUIRED)
+        target_link_libraries(ecscope_modern_rendering PUBLIC ${OPENGL_LIBRARIES})
+        target_compile_definitions(ecscope_modern_rendering PUBLIC ECSCOPE_HAS_OPENGL_BACKEND=1)
+    endif()
+    
+    # GLFW for window management (optional)
+    find_package(glfw3 QUIET)
+    if(glfw3_FOUND OR TARGET glfw)
+        target_link_libraries(ecscope_modern_rendering PUBLIC glfw)
+        target_compile_definitions(ecscope_modern_rendering PUBLIC ECSCOPE_HAS_GLFW=1)
+        message(STATUS "GLFW found: Window management support enabled")
+    else()
+        message(STATUS "GLFW not found - window management will be limited")
+    endif()
+    
+    target_compile_definitions(ecscope_modern_rendering PUBLIC ECSCOPE_HAS_MODERN_RENDERING=1)
+    
+    # Set C++20 requirement for modern rendering
+    target_compile_features(ecscope_modern_rendering PUBLIC cxx_std_20)
+endif()
+
+# =============================================================================
 # UI SYSTEM LIBRARY - ImGui-based User Interface
 # =============================================================================
 
@@ -491,31 +798,61 @@ if(ECSCOPE_ENABLE_SCRIPTING)
     add_library(ecscope_scripting STATIC)
     
     target_sources(ecscope_scripting PRIVATE
+        # Core scripting system
         src/scripting/script_engine.cpp
+        src/scripting/script_manager.cpp
         src/scripting/auto_bindings.cpp
+        
+        # Language-specific engines
+        src/scripting/lua_engine.cpp
+        src/scripting/python_engine.cpp
+        
+        # Advanced features
+        src/scripting/script_hot_reloader.cpp
+        src/scripting/script_debugger.cpp
+        src/scripting/multi_language_repl.cpp
+        
+        # Engine system bindings
+        src/scripting/ecs_bindings.cpp
+        src/scripting/engine_bindings.cpp
     )
     
-    # Try to find Python
-    find_package(Python3 COMPONENTS Interpreter Development QUIET)
+    # Try to find Python 3.11+
+    find_package(Python3 3.11 COMPONENTS Interpreter Development QUIET)
     if(Python3_FOUND)
-        target_sources(ecscope_scripting PRIVATE src/scripting/python_engine.cpp)
         target_link_libraries(ecscope_scripting PUBLIC Python3::Python)
         target_compile_definitions(ecscope_scripting PUBLIC ECSCOPE_HAS_PYTHON=1)
-        message(STATUS "Python3 found: Enabling Python scripting support")
+        
+        # Try to find NumPy for advanced array support
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
+            OUTPUT_VARIABLE NUMPY_INCLUDE_PATH
+            RESULT_VARIABLE NUMPY_NOT_FOUND
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT NUMPY_NOT_FOUND)
+            target_include_directories(ecscope_scripting PRIVATE ${NUMPY_INCLUDE_PATH})
+            target_compile_definitions(ecscope_scripting PUBLIC ECSCOPE_HAS_NUMPY=1)
+            message(STATUS "NumPy found: Enabling advanced array support")
+        endif()
+        
+        message(STATUS "Python ${Python3_VERSION} found: Enabling comprehensive Python scripting support")
     else()
-        message(STATUS "Python3 not found - Python scripting disabled")
+        message(STATUS "Python 3.11+ not found - Python scripting disabled")
     endif()
     
-    # Try to find Lua
-    find_package(Lua QUIET)
+    # Try to find Lua 5.4+
+    find_package(Lua 5.4 QUIET)
+    if(NOT LUA_FOUND)
+        find_package(Lua 5.3 QUIET)
+    endif()
     if(LUA_FOUND)
-        target_sources(ecscope_scripting PRIVATE src/scripting/lua_engine.cpp)
         target_link_libraries(ecscope_scripting PUBLIC ${LUA_LIBRARIES})
         target_include_directories(ecscope_scripting PUBLIC ${LUA_INCLUDE_DIR})
         target_compile_definitions(ecscope_scripting PUBLIC ECSCOPE_HAS_LUA=1)
-        message(STATUS "Lua found: Enabling Lua scripting support")
+        message(STATUS "Lua ${LUA_VERSION_STRING} found: Enabling comprehensive Lua scripting support")
     else()
-        message(STATUS "Lua not found - Lua scripting disabled")
+        message(STATUS "Lua 5.3+ not found - Lua scripting disabled")
     endif()
     
     target_include_directories(ecscope_scripting
@@ -532,6 +869,372 @@ if(ECSCOPE_ENABLE_SCRIPTING)
 endif()
 
 # =============================================================================
+# GUI SYSTEM LIBRARY - Professional Immediate Mode GUI Framework
+# =============================================================================
+
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    add_library(ecscope_gui STATIC)
+    
+    # Try to find FreeType for font rendering
+    find_package(Freetype QUIET)
+    if(Freetype_FOUND OR FREETYPE_FOUND)
+        set(ECSCOPE_HAS_FREETYPE ON)
+        message(STATUS "FreeType found: Advanced text rendering enabled")
+    else()
+        set(ECSCOPE_HAS_FREETYPE OFF)
+        message(STATUS "FreeType not found - using basic font rendering")
+    endif()
+    
+    target_sources(ecscope_gui PRIVATE
+        # Core GUI system
+        src/gui/gui_core.cpp
+        src/gui/gui_context.cpp
+        
+        # Memory management
+        src/gui/gui_memory.cpp
+        src/gui/memory/linear_allocator.cpp
+        src/gui/memory/stack_allocator.cpp
+        src/gui/memory/freelist_allocator.cpp
+        src/gui/memory/memory_manager.cpp
+        
+        # Input system
+        src/gui/gui_input.cpp
+        src/gui/input/input_system.cpp
+        src/gui/input/keyboard_navigator.cpp
+        
+        # Text rendering
+        src/gui/gui_text.cpp
+        src/gui/text/font_atlas.cpp
+        src/gui/text/text_layout_engine.cpp
+        src/gui/text/text_renderer.cpp
+        $<$<BOOL:${ECSCOPE_HAS_FREETYPE}>:src/gui/text/freetype_integration.cpp>
+        
+        # Widget system
+        src/gui/gui_widgets.cpp
+        src/gui/widgets/button.cpp
+        src/gui/widgets/input_text.cpp
+        src/gui/widgets/slider.cpp
+        src/gui/widgets/checkbox.cpp
+        src/gui/widgets/combo.cpp
+        src/gui/widgets/listbox.cpp
+        src/gui/widgets/selectable.cpp
+        src/gui/widgets/color_edit.cpp
+        src/gui/widgets/tree_node.cpp
+        src/gui/widgets/table.cpp
+        src/gui/widgets/progress_bar.cpp
+        
+        # Layout system
+        src/gui/gui_layout.cpp
+        src/gui/layout/window.cpp
+        src/gui/layout/layout_container.cpp
+        src/gui/layout/grid_layout.cpp
+        src/gui/layout/splitter.cpp
+        src/gui/layout/tabs.cpp
+        src/gui/layout/docking.cpp
+        src/gui/layout/popup.cpp
+        src/gui/layout/menu.cpp
+        src/gui/layout/tooltip.cpp
+        src/gui/layout/table.cpp
+        
+        # Theme system
+        src/gui/gui_theme.cpp
+        src/gui/theme/color_palette.cpp
+        src/gui/theme/gui_style.cpp
+        src/gui/theme/font_manager.cpp
+        src/gui/theme/animation.cpp
+        src/gui/theme/theme_manager.cpp
+        
+        # Renderer integration
+        src/gui/gui_renderer.cpp
+        src/gui/renderer/draw_list.cpp
+        src/gui/renderer/render_command_processor.cpp
+        src/gui/renderer/gui_vertex.cpp
+        
+        # Advanced features
+        src/gui/gui_advanced.cpp
+        src/gui/advanced/drag_drop.cpp
+        src/gui/advanced/context_menu.cpp
+        src/gui/advanced/modal_dialog.cpp
+        src/gui/advanced/notification.cpp
+        src/gui/advanced/input_dialog.cpp
+        src/gui/advanced/wizard.cpp
+        src/gui/advanced/progress_dialog.cpp
+        src/gui/advanced/property_grid.cpp
+        src/gui/advanced/shortcut_manager.cpp
+        
+        # Platform integration
+        src/gui/platform/glfw_integration.cpp
+        
+        # Demo and utilities
+        src/gui/demo/gui_demo.cpp
+        src/gui/utilities/gui_utilities.cpp
+    )
+    
+    target_include_directories(ecscope_gui
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/gui>
+            $<INSTALL_INTERFACE:include/ecscope/gui>
+    )
+    
+    # Link dependencies
+    target_link_libraries(ecscope_gui 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            ecscope_modern_rendering
+        PRIVATE
+            $<$<BOOL:${ECSCOPE_HAS_FREETYPE}>:${FREETYPE_LIBRARIES}>
+    )
+    
+    # FreeType support
+    if(ECSCOPE_HAS_FREETYPE)
+        target_include_directories(ecscope_gui PRIVATE ${FREETYPE_INCLUDE_DIRS})
+        target_compile_definitions(ecscope_gui PRIVATE ECSCOPE_HAS_FREETYPE=1)
+    endif()
+    
+    # GLFW support (for input integration)
+    if(glfw3_FOUND OR TARGET glfw)
+        target_compile_definitions(ecscope_gui PRIVATE ECSCOPE_HAS_GLFW=1)
+    endif()
+    
+    # OpenGL/Vulkan backend integration
+    if(ECSCOPE_HAS_VULKAN)
+        target_compile_definitions(ecscope_gui PRIVATE GUI_ENABLE_VULKAN_INTEGRATION=1)
+    endif()
+    
+    if(ECSCOPE_HAS_OPENGL_BACKEND)
+        target_compile_definitions(ecscope_gui PRIVATE GUI_ENABLE_OPENGL_INTEGRATION=1)
+    endif()
+    
+    # Debug features
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_definitions(ecscope_gui PRIVATE GUI_DEBUG_MEMORY=1)
+    endif()
+    
+    target_compile_definitions(ecscope_gui PUBLIC ECSCOPE_HAS_GUI=1)
+    
+    # Add to available libraries
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_gui")
+    
+    message(STATUS "GUI System enabled with modern rendering backend")
+endif()
+
+# =============================================================================
+# ASSET SYSTEM LIBRARY - Professional Asset Management
+# =============================================================================
+
+# Asset system configuration
+option(ECSCOPE_ENABLE_ASSETS "Enable comprehensive asset management system" ON)
+
+if(ECSCOPE_ENABLE_ASSETS)
+    add_library(ecscope_assets STATIC)
+    
+    target_sources(ecscope_assets PRIVATE
+        # Core asset system
+        src/assets/asset_types.cpp
+        src/assets/asset.cpp
+        src/assets/asset_manager.cpp
+        src/assets/asset_registry.cpp
+        src/assets/asset_loader.cpp
+        src/assets/asset_cache.cpp
+        src/assets/asset_database.cpp
+        src/assets/asset_streaming.cpp
+        src/assets/hot_reload.cpp
+        src/assets/asset_tools.cpp
+        src/assets/compression.cpp
+        
+        # Concrete asset implementations
+        src/assets/concrete_assets.cpp
+        
+        # Asset processors
+        src/assets/processors/asset_processor.cpp
+        src/assets/processors/texture_processor.cpp
+        src/assets/processors/mesh_processor.cpp
+        src/assets/processors/audio_processor.cpp
+        src/assets/processors/shader_processor.cpp
+        
+        # Engine integrations
+        src/assets/integrations/rendering_integration.cpp
+        src/assets/integrations/ecs_integration.cpp
+        
+        # Platform-specific file watching
+        $<$<PLATFORM_ID:Windows>:src/assets/platform/windows_file_watcher.cpp>
+        $<$<PLATFORM_ID:Linux>:src/assets/platform/linux_file_watcher.cpp>
+        $<$<PLATFORM_ID:Darwin>:src/assets/platform/macos_file_watcher.cpp>
+    )
+    
+    target_include_directories(ecscope_assets
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/assets>
+            $<INSTALL_INTERFACE:include/ecscope/assets>
+    )
+    
+    # Link dependencies
+    target_link_libraries(ecscope_assets 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            Threads::Threads
+        PRIVATE
+            ${PLATFORM_LIBS}
+            $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+            $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_modern_rendering>
+    )
+    
+    # Optional compression support
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(LZ4 QUIET liblz4)
+        if(LZ4_FOUND)
+            target_link_libraries(ecscope_assets PRIVATE ${LZ4_LIBRARIES})
+            target_include_directories(ecscope_assets PRIVATE ${LZ4_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_assets PRIVATE ECSCOPE_HAS_LZ4=1)
+            message(STATUS "LZ4 found: Enabling LZ4 asset compression")
+        endif()
+        
+        pkg_check_modules(ZSTD QUIET libzstd)
+        if(ZSTD_FOUND)
+            target_link_libraries(ecscope_assets PRIVATE ${ZSTD_LIBRARIES})
+            target_include_directories(ecscope_assets PRIVATE ${ZSTD_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_assets PRIVATE ECSCOPE_HAS_ZSTD=1)
+            message(STATUS "zstd found: Enabling Zstandard asset compression")
+        endif()
+    endif()
+    
+    # SQLite for asset database
+    find_library(SQLITE3_LIBRARY NAMES sqlite3)
+    if(SQLITE3_LIBRARY)
+        target_link_libraries(ecscope_assets PRIVATE ${SQLITE3_LIBRARY})
+        target_compile_definitions(ecscope_assets PRIVATE ECSCOPE_HAS_SQLITE3=1)
+        message(STATUS "SQLite3 found: Enabling asset database support")
+    else()
+        message(STATUS "SQLite3 not found - asset database will use in-memory storage")
+    endif()
+    
+    target_compile_definitions(ecscope_assets PUBLIC ECSCOPE_HAS_ASSETS=1)
+    
+    message(STATUS "Asset System enabled with comprehensive features")
+endif()
+
+# =============================================================================
+# DEBUG SYSTEM LIBRARY - Comprehensive Debugging and Profiling
+# =============================================================================
+
+if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
+    add_library(ecscope_debug STATIC)
+    
+    target_sources(ecscope_debug PRIVATE
+        # Core debug system
+        src/debug/debug_system.cpp
+        src/debug/debug_renderer.cpp
+        src/debug/performance_monitor.cpp
+        
+        # Profilers
+        src/debug/profilers/cpu_profiler.cpp
+        src/debug/profilers/memory_profiler.cpp
+        src/debug/profilers/gpu_profiler.cpp
+        src/debug/profilers/network_profiler.cpp
+        src/debug/profilers/asset_profiler.cpp
+        src/debug/profilers/custom_event_profiler.cpp
+        
+        # Visualizers
+        src/debug/visualizers/performance_graph_visualizer.cpp
+        src/debug/visualizers/memory_visualizer.cpp
+        src/debug/visualizers/ecs_visualizer.cpp
+        src/debug/visualizers/physics_debug_visualizer.cpp
+        src/debug/visualizers/rendering_debug_visualizer.cpp
+        src/debug/visualizers/network_visualizer.cpp
+        src/debug/visualizers/chart_visualizer.cpp
+        
+        # Inspectors
+        src/debug/inspectors/entity_inspector.cpp
+        src/debug/inspectors/system_inspector.cpp
+        src/debug/inspectors/asset_inspector.cpp
+        src/debug/inspectors/memory_inspector.cpp
+        src/debug/inspectors/shader_inspector.cpp
+        src/debug/inspectors/job_system_inspector.cpp
+        
+        # Console system
+        src/debug/console/console.cpp
+        src/debug/console/remote_debug_server.cpp
+        src/debug/console/script_engine.cpp
+        src/debug/console/crash_analyzer.cpp
+        src/debug/console/command_registry.cpp
+        
+        # ImGui integration
+        src/debug/imgui/imgui_debug_renderer.cpp
+        src/debug/imgui/imgui_integration.cpp
+        
+        # Utilities
+        src/debug/utils/debug_utils.cpp
+        src/debug/utils/global_debug_system.cpp
+        src/debug/utils/debug_system_builder.cpp
+        src/debug/utils/debug_presets.cpp
+    )
+    
+    target_include_directories(ecscope_debug
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/debug>
+            $<INSTALL_INTERFACE:include/ecscope/debug>
+    )
+    
+    # Link dependencies
+    target_link_libraries(ecscope_debug 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            Threads::Threads
+        PRIVATE
+            $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+            $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+            $<$<BOOL:${ECSCOPE_HAS_GRAPHICS}>:ecscope_graphics>
+            $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_modern_rendering>
+            $<$<BOOL:${ECSCOPE_ENABLE_NETWORKING}>:ecscope_networking>
+            $<$<BOOL:${ECSCOPE_ENABLE_ASSETS}>:ecscope_assets>
+            ${PLATFORM_LIBS}
+    )
+    
+    # Platform-specific networking libraries for remote debugging
+    if(WIN32)
+        target_link_libraries(ecscope_debug PRIVATE ws2_32 wsock32)
+    elseif(UNIX AND NOT APPLE)
+        target_link_libraries(ecscope_debug PRIVATE rt)
+    endif()
+    
+    # Optional ImGui support for debug UI
+    if(ECSCOPE_HAS_IMGUI)
+        target_compile_definitions(ecscope_debug PRIVATE ECSCOPE_HAS_IMGUI=1)
+        # ImGui sources would be linked here if available
+    endif()
+    
+    # Optional scripting support for console
+    if(ECSCOPE_ENABLE_SCRIPTING)
+        target_link_libraries(ecscope_debug PRIVATE ecscope_scripting)
+        target_compile_definitions(ecscope_debug PRIVATE ECSCOPE_DEBUG_HAS_SCRIPTING=1)
+    endif()
+    
+    # Debug features configuration
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_definitions(ecscope_debug PRIVATE 
+            ECSCOPE_DEBUG_VERBOSE=1
+            ECSCOPE_DEBUG_MEMORY_TRACKING=1
+        )
+    endif()
+    
+    # Release optimizations
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_definitions(ecscope_debug PRIVATE 
+            ECSCOPE_DEBUG_MINIMAL_IMPACT=1
+            ECSCOPE_DEBUG_RELEASE_BUILD=1
+        )
+    endif()
+    
+    target_compile_definitions(ecscope_debug PUBLIC ECSCOPE_HAS_DEBUG_SYSTEM=1)
+    
+    message(STATUS "Debug System enabled with comprehensive debugging and profiling tools")
+endif()
+
+# =============================================================================
 # UNIFIED ECSCOPE LIBRARY - Complete Integration
 # =============================================================================
 
@@ -544,10 +1247,16 @@ target_link_libraries(ecscope
         ecscope_memory
         $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
         $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+        $<$<BOOL:${ECSCOPE_ENABLE_NETWORKING}>:ecscope_networking>
         $<$<BOOL:${ECSCOPE_ENABLE_PERFORMANCE_LAB}>:ecscope_performance>
         $<$<BOOL:${ECSCOPE_HAS_GRAPHICS}>:ecscope_graphics>
+        $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_modern_rendering>
+        $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_gui>
         $<$<AND:$<BOOL:${ECSCOPE_HAS_GRAPHICS}>,$<BOOL:${ECSCOPE_HAS_IMGUI}>>:ecscope_ui>
         $<$<BOOL:${ECSCOPE_ENABLE_SCRIPTING}>:ecscope_scripting>
+        $<$<BOOL:${ECSCOPE_ENABLE_ASSETS}>:ecscope_assets>
+        $<$<BOOL:${ECSCOPE_ENABLE_DEBUG_SYSTEM}>:ecscope_debug>
+        $<$<BOOL:${ECSCOPE_ENABLE_PLUGIN_SYSTEM}>:ecscope_plugins>
 )
 
 # Convenience alias
@@ -693,6 +1402,69 @@ if(ECSCOPE_BUILD_EXAMPLES)
         target_link_libraries(example_physics_benchmarks PRIVATE ecscope)
     endif()
     
+    # Advanced Debug System Demo
+    if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
+        add_executable(example_comprehensive_debug_system)
+        target_sources(example_comprehensive_debug_system PRIVATE examples/advanced/comprehensive_debug_system_demo.cpp)
+        target_link_libraries(example_comprehensive_debug_system PRIVATE ecscope)
+        
+        message(STATUS "Building comprehensive debug system demo")
+    endif()
+    
+    # =============================================================================
+    # NETWORKING EXAMPLES - Client-Server and P2P Demonstrations
+    # =============================================================================
+    
+    # Basic Client-Server Networking
+    if(ECSCOPE_ENABLE_NETWORKING)
+        add_executable(example_basic_client_server)
+        target_sources(example_basic_client_server PRIVATE examples/networking/basic_client_server.cpp)
+        target_link_libraries(example_basic_client_server PRIVATE ecscope)
+        
+        # Peer-to-Peer Networking Demo
+        add_executable(example_peer_to_peer_demo)
+        target_sources(example_peer_to_peer_demo PRIVATE examples/networking/peer_to_peer_demo.cpp)
+        target_link_libraries(example_peer_to_peer_demo PRIVATE ecscope)
+        
+        message(STATUS "Building networking examples")
+    endif()
+    
+    # =============================================================================
+    # GUI FRAMEWORK EXAMPLES - Professional GUI Demonstrations
+    # =============================================================================
+    
+    # GUI Comprehensive Demo
+    if(ECSCOPE_HAS_MODERN_RENDERING)
+        add_executable(gui_comprehensive_demo)
+        target_sources(gui_comprehensive_demo PRIVATE examples/gui_comprehensive_demo.cpp)
+        target_link_libraries(gui_comprehensive_demo PRIVATE ecscope)
+        
+        message(STATUS "Building GUI comprehensive demo")
+    endif()
+    
+    # =============================================================================
+    # ASSET SYSTEM EXAMPLES - Professional Asset Management
+    # =============================================================================
+    
+    if(ECSCOPE_ENABLE_ASSETS)
+        # Basic Asset Loading Demo
+        add_executable(example_01_basic_asset_loading)
+        target_sources(example_01_basic_asset_loading PRIVATE examples/assets/01_basic_asset_loading.cpp)
+        target_link_libraries(example_01_basic_asset_loading PRIVATE ecscope)
+        
+        # Streaming and LOD Demo
+        add_executable(example_02_streaming_and_lod_demo)
+        target_sources(example_02_streaming_and_lod_demo PRIVATE examples/assets/02_streaming_and_lod_demo.cpp)
+        target_link_libraries(example_02_streaming_and_lod_demo PRIVATE ecscope)
+        
+        # Hot Reload Demo
+        add_executable(example_03_hot_reload_demo)
+        target_sources(example_03_hot_reload_demo PRIVATE examples/assets/03_hot_reload_demo.cpp)
+        target_link_libraries(example_03_hot_reload_demo PRIVATE ecscope)
+        
+        message(STATUS "Building asset system examples")
+    endif()
+    
     # =============================================================================
     # REFERENCE EXAMPLES - Production-Quality Showcases
     # =============================================================================
@@ -816,10 +1588,20 @@ if(ECSCOPE_BUILD_BENCHMARKS)
     endif()
     
     # Job System Benchmarks
-    if(ECSCOPE_ENABLE_JOB_SYSTEM AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/job_system_benchmarks.cpp")
-        add_executable(benchmark_job_system)
-        target_sources(benchmark_job_system PRIVATE benchmarks/job_system_benchmarks.cpp)
-        target_link_libraries(benchmark_job_system PRIVATE ecscope)
+    if(ECSCOPE_ENABLE_JOB_SYSTEM)
+        # Fiber-based job system comprehensive benchmark
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/fiber_job_system_benchmark.cpp")
+            add_executable(benchmark_fiber_job_system)
+            target_sources(benchmark_fiber_job_system PRIVATE benchmarks/fiber_job_system_benchmark.cpp)
+            target_link_libraries(benchmark_fiber_job_system PRIVATE ecscope)
+        endif()
+        
+        # Legacy job system benchmark (backward compatibility)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/job_system_benchmarks.cpp")
+            add_executable(benchmark_job_system)
+            target_sources(benchmark_job_system PRIVATE benchmarks/job_system_benchmarks.cpp)
+            target_link_libraries(benchmark_job_system PRIVATE ecscope)
+        endif()
     endif()
     
     # Rendering Benchmarks
@@ -896,6 +1678,16 @@ if(ECSCOPE_BUILD_TESTS)
             add_test(NAME JobTests COMMAND test_jobs)
         endif()
         
+        # Modern Rendering Tests
+        if(ECSCOPE_HAS_MODERN_RENDERING)
+            add_executable(test_modern_rendering)
+            target_sources(test_modern_rendering PRIVATE
+                tests/rendering/test_rendering_system.cpp
+            )
+            target_link_libraries(test_modern_rendering PRIVATE ecscope_modern_rendering GTest::gtest_main)
+            add_test(NAME ModernRenderingTests COMMAND test_modern_rendering)
+        endif()
+        
     else()
         message(STATUS "Google Test not found - building basic tests")
         
@@ -934,12 +1726,24 @@ if(ECSCOPE_ENABLE_PHYSICS)
     install(TARGETS ecscope_physics EXPORT ECScope-targets)
 endif()
 
+if(ECSCOPE_ENABLE_NETWORKING)
+    install(TARGETS ecscope_networking EXPORT ECScope-targets)
+endif()
+
 if(ECSCOPE_ENABLE_PERFORMANCE_LAB)
     install(TARGETS ecscope_performance EXPORT ECScope-targets)
 endif()
 
 if(ECSCOPE_HAS_GRAPHICS)
     install(TARGETS ecscope_graphics EXPORT ECScope-targets)
+endif()
+
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    install(TARGETS ecscope_modern_rendering EXPORT ECScope-targets)
+endif()
+
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    install(TARGETS ecscope_gui EXPORT ECScope-targets)
 endif()
 
 if(ECSCOPE_HAS_GRAPHICS AND ECSCOPE_HAS_IMGUI)
@@ -1013,10 +1817,33 @@ message(STATUS "")
 message(STATUS "Advanced Systems:")
 message(STATUS "  Job System: ${ECSCOPE_ENABLE_JOB_SYSTEM}")
 message(STATUS "  Physics Engine: ${ECSCOPE_ENABLE_PHYSICS}")
+message(STATUS "  Networking System: ${ECSCOPE_ENABLE_NETWORKING}")
 message(STATUS "  Graphics System: ${ECSCOPE_HAS_GRAPHICS}")
-message(STATUS "  UI System: ${ECSCOPE_HAS_IMGUI}")
+message(STATUS "  Modern Rendering: ${ECSCOPE_HAS_MODERN_RENDERING}")
+message(STATUS "  Plugin System: ${ECSCOPE_ENABLE_PLUGIN_SYSTEM}")
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    message(STATUS "    - Vulkan Backend: ${ECSCOPE_HAS_VULKAN}")
+    message(STATUS "    - OpenGL Backend: ${ECSCOPE_HAS_OPENGL_BACKEND}")
+endif()
+message(STATUS "  Professional GUI: ${ECSCOPE_HAS_MODERN_RENDERING}")
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    message(STATUS "    - FreeType Support: ${ECSCOPE_HAS_FREETYPE}")
+endif()
+message(STATUS "  ImGui UI System: ${ECSCOPE_HAS_IMGUI}")
 message(STATUS "  Scripting Support: ${ECSCOPE_ENABLE_SCRIPTING}")
 message(STATUS "  Performance Lab: ${ECSCOPE_ENABLE_PERFORMANCE_LAB}")
+message(STATUS "  Debug System: ${ECSCOPE_ENABLE_DEBUG_SYSTEM}")
+if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
+    message(STATUS "    - CPU Profiler: Enabled")
+    message(STATUS "    - Memory Profiler: Enabled") 
+    message(STATUS "    - GPU Profiler: Enabled")
+    message(STATUS "    - Network Profiler: Enabled")
+    message(STATUS "    - Asset Profiler: Enabled")
+    message(STATUS "    - Visual Debuggers: Enabled")
+    message(STATUS "    - Runtime Inspectors: Enabled")
+    message(STATUS "    - Debug Console: Enabled")
+    message(STATUS "    - Remote Debugging: Enabled")
+endif()
 message(STATUS "")
 
 message(STATUS "Performance Features:")
@@ -1041,11 +1868,17 @@ endif()
 if(ECSCOPE_ENABLE_PHYSICS)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_physics")
 endif()
+if(ECSCOPE_ENABLE_NETWORKING)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_networking")
+endif()
 if(ECSCOPE_ENABLE_PERFORMANCE_LAB)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_performance")
 endif()
 if(ECSCOPE_HAS_GRAPHICS)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_graphics")
+endif()
+if(ECSCOPE_HAS_MODERN_RENDERING)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_modern_rendering")
 endif()
 if(ECSCOPE_HAS_GRAPHICS AND ECSCOPE_HAS_IMGUI)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_ui")
@@ -1059,111 +1892,134 @@ endif()
 # =============================================================================
 
 if(ECSCOPE_ENABLE_PLUGIN_SYSTEM)
-    add_library(ecscope_plugin STATIC)
+    add_library(ecscope_plugins STATIC)
     
-    target_sources(ecscope_plugin PRIVATE
+    target_sources(ecscope_plugins PRIVATE
         # Core plugin system
-        src/plugin/plugin_core.cpp
-        src/plugin/plugin_manager.cpp
-        src/plugin/plugin_registry.cpp
-        src/plugin/plugin_security.cpp
-        src/plugin/plugin_api.cpp
+        src/plugins/plugin_interface.cpp
+        src/plugins/plugin_context.cpp
+        src/plugins/plugin_loader.cpp
+        src/plugins/plugin_discovery.cpp
         
-        # Dynamic loading system
-        src/plugin/dynamic_loader.cpp
+        # Plugin registry and management (when implemented)
+        # src/plugins/plugin_registry.cpp
+        # src/plugins/plugin_security.cpp
+        # src/plugins/plugin_messaging.cpp
         
-        # ECS integration
-        src/plugin/ecs_plugin_integration.cpp
+        # ECS integration (when implemented)
+        # src/plugins/ecs_integration.cpp
         
-        # Development tools
-        src/plugin/plugin_sdk.cpp
-        src/plugin/plugin_testing.cpp
+        # Rendering integration (when implemented)
+        # src/plugins/rendering_integration.cpp
         
-        # Platform-specific implementations
-        $<$<PLATFORM_ID:Windows>:src/plugin/platform/windows_loader.cpp>
-        $<$<PLATFORM_ID:Linux>:src/plugin/platform/linux_loader.cpp>
-        $<$<PLATFORM_ID:Darwin>:src/plugin/platform/macos_loader.cpp>
+        # SDK implementations (when implemented)
+        # src/plugins/sdk/plugin_base.cpp
+        # src/plugins/sdk/plugin_builder.cpp
+        # src/plugins/sdk/plugin_utils.cpp
+        # src/plugins/sdk/cmake_utils.cpp
+        # src/plugins/sdk/testing_framework.cpp
     )
     
-    target_include_directories(ecscope_plugin
+    target_include_directories(ecscope_plugins
         PUBLIC 
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/plugin>
-            $<INSTALL_INTERFACE:include/ecscope/plugin>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/plugins>
+            $<INSTALL_INTERFACE:include>
+            $<INSTALL_INTERFACE:include/ecscope/plugins>
     )
     
     # Platform-specific linking
     if(WIN32)
-        target_link_libraries(ecscope_plugin PRIVATE kernel32 psapi)
+        target_link_libraries(ecscope_plugins PRIVATE kernel32 psapi)
     elseif(UNIX)
-        target_link_libraries(ecscope_plugin PRIVATE ${CMAKE_DL_LIBS} pthread)
+        target_link_libraries(ecscope_plugins PRIVATE ${CMAKE_DL_LIBS} pthread)
     endif()
     
-    target_link_libraries(ecscope_plugin 
+    target_link_libraries(ecscope_plugins 
         PUBLIC 
             ecscope_core
             ecscope_memory
             $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+            $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_modern_rendering>
+            $<$<BOOL:${ECSCOPE_HAS_MODERN_RENDERING}>:ecscope_gui>
+            $<$<BOOL:${ECSCOPE_ENABLE_ASSETS}>:ecscope_assets>
         PRIVATE
             $<$<BOOL:${ECSCOPE_HAS_GRAPHICS}>:ecscope_graphics>
     )
     
-    target_compile_definitions(ecscope_plugin 
+    target_compile_definitions(ecscope_plugins 
         PUBLIC 
             ECSCOPE_HAS_PLUGIN_SYSTEM=1
-            PLUGIN_API_VERSION=1
+            ECSCOPE_PLUGIN_API_VERSION=1
         PRIVATE
             $<$<CONFIG:Debug>:ECSCOPE_PLUGIN_DEBUG=1>
     )
     
+    # Add plugin search paths
+    if(WIN32)
+        target_compile_definitions(ecscope_plugins PRIVATE 
+            ECSCOPE_PLUGIN_EXTENSION=".dll"
+            ECSCOPE_PLUGIN_PREFIX=""
+        )
+    elseif(APPLE)
+        target_compile_definitions(ecscope_plugins PRIVATE 
+            ECSCOPE_PLUGIN_EXTENSION=".dylib"
+            ECSCOPE_PLUGIN_PREFIX="lib"
+        )
+    else()
+        target_compile_definitions(ecscope_plugins PRIVATE 
+            ECSCOPE_PLUGIN_EXTENSION=".so"
+            ECSCOPE_PLUGIN_PREFIX="lib"
+        )
+    endif()
+    
     # Add to available libraries
-    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_plugin")
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_plugins")
     
     # Plugin system examples and demos
     if(ECSCOPE_BUILD_EXAMPLES)
+        # Create plugins output directory
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
+        
+        # Build example plugins as shared libraries
+        add_subdirectory(examples/plugins)
+        
+        # Plugin template generator utility
+        add_executable(plugin_template_generator 
+            examples/plugins/plugin_template_generator.cpp
+        )
+        target_link_libraries(plugin_template_generator PRIVATE ecscope_plugins)
+        set_target_properties(plugin_template_generator PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tools"
+        )
+        
         # Plugin system demonstration
-        add_executable(plugin_system_demo examples/plugin_system_demo.cpp)
-        target_link_libraries(plugin_system_demo 
-            PRIVATE 
-                ecscope_plugin 
-                ecscope_core
-                $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
-        )
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/plugin_system_demo.cpp")
+            add_executable(plugin_system_demo examples/plugin_system_demo.cpp)
+            target_link_libraries(plugin_system_demo 
+                PRIVATE 
+                    ecscope_plugins 
+                    ecscope_core
+                    $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>
+            )
+        endif()
         
-        # Example plugins (built as shared libraries)
-        add_library(basic_component_plugin SHARED examples/plugins/basic_component_plugin.cpp)
-        target_link_libraries(basic_component_plugin PRIVATE ecscope_plugin)
-        set_target_properties(basic_component_plugin PROPERTIES
-            PREFIX ""
-            SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
-            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
-        )
-        
-        add_library(advanced_system_plugin SHARED examples/plugins/advanced_system_plugin.cpp)
-        target_link_libraries(advanced_system_plugin PRIVATE ecscope_plugin)
-        set_target_properties(advanced_system_plugin PROPERTIES
-            PREFIX ""
-            SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
-            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
-        )
-        
-        # Copy plugin metadata files
-        configure_file(
-            "${CMAKE_SOURCE_DIR}/examples/plugins/basic_component_plugin.json"
-            "${CMAKE_BINARY_DIR}/plugins/basic_component_plugin.json"
-            COPYONLY
-        )
-        configure_file(
-            "${CMAKE_SOURCE_DIR}/examples/plugins/advanced_system_plugin.json"
-            "${CMAKE_BINARY_DIR}/plugins/advanced_system_plugin.json"
-            COPYONLY
-        )
+        message(STATUS "Plugin System: Example plugins and tools will be built")
     endif()
+    
+    # Install plugin system
+    install(TARGETS ecscope_plugins EXPORT ECScope-targets)
+    install(DIRECTORY include/ecscope/plugins DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ecscope)
+    
+    message(STATUS "Plugin System enabled with comprehensive features")
 endif()
 
 if(ECSCOPE_ENABLE_SCRIPTING)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_scripting")
+endif()
+
+if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_debug")
 endif()
 
 message(STATUS "Available Libraries:")

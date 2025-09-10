@@ -1,4 +1,4 @@
-#include "math.hpp"
+#include "ecscope/physics/physics_math.hpp"
 #include <algorithm>
 #include <numeric>
 #include <chrono>
@@ -6,14 +6,13 @@
 
 /**
  * @file physics/math.cpp
- * @brief Implementation of comprehensive 2D Physics Mathematics Foundation
+ * @brief Implementation of comprehensive 2D/3D Physics Mathematics Foundation
  * 
- * This implementation provides high-performance mathematical operations for 2D physics
- * while maintaining educational clarity. Each algorithm includes detailed comments
- * explaining the mathematical principles and implementation choices.
+ * This implementation provides high-performance mathematical operations for 2D/3D physics
+ * while maintaining production-ready performance and stability.
  */
 
-namespace ecscope::physics::math {
+namespace ecscope::physics {
 
 //=============================================================================
 // Extended Vector Mathematics Implementation

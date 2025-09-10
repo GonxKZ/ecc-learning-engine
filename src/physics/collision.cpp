@@ -1,10 +1,10 @@
-#include "collision.hpp"
-#include "../core/log.hpp"
+#include "ecscope/physics/collision_detection.hpp"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <execution>
 
-namespace ecscope::physics::collision {
+namespace ecscope::physics {
 
 //=============================================================================
 // Basic Distance Functions Implementation

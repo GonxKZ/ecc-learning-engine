@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <execution>
 #include <numeric>
+#include <cmath>
 
 namespace ecscope::ecs {
 

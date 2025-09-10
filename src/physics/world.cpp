@@ -1,5 +1,4 @@
-#include "world.hpp"
-#include "../core/log.hpp"
+#include "ecscope/physics/physics_world.hpp"
 #include <algorithm>
 #include <execution>
 #include <unordered_set>
