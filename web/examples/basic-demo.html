@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECScope Basic Demo - WebAssembly Engine</title>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4CAF50;
+        }
+        
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        
+        .demo-section h2 {
+            color: #2196F3;
+            margin-bottom: 15px;
+        }
+        
+        .canvas-container {
+            width: 100%;
+            height: 400px;
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        #main-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #45a049;
+        }
+        
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .btn.secondary {
+            background: #2196F3;
+        }
+        
+        .btn.secondary:hover {
+            background: #1976D2;
+        }
+        
+        .btn.danger {
+            background: #f44336;
+        }
+        
+        .btn.danger:hover {
+            background: #d32f2f;
+        }
+        
+        .info-panel {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .info-label {
+            color: #888;
+        }
+        
+        .info-value {
+            color: #4CAF50;
+        }
+        
+        .log-output {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin-bottom: 2px;
+        }
+        
+        .log-info { color: #4CAF50; }
+        .log-warning { color: #FF9800; }
+        .log-error { color: #f44336; }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .input-group label {
+            min-width: 100px;
+            color: #ccc;
+        }
+        
+        .input-group input,
+        .input-group select {
+            background: #444;
+            border: 1px solid #666;
+            border-radius: 4px;
+            padding: 5px 10px;
+            color: #fff;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.loading {
+            background: #FF9800;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-indicator.ready {
+            background: #4CAF50;
+        }
+        
+        .status-indicator.error {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                justify-content: center;
+            }
+            
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .input-group label {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECScope WebAssembly Engine - Basic Demo</h1>
+        
+        <!-- Application Status -->
+        <div class="demo-section">
+            <h2>Application Status</h2>
+            <div class="info-panel">
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value">
+                        <span id="status-indicator" class="status-indicator loading"></span>
+                        <span id="status-text">Initializing...</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">ECScope Version:</span>
+                    <span class="info-value" id="version">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Browser:</span>
+                    <span class="info-value" id="browser-info">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">WebGL2 Support:</span>
+                    <span class="info-value" id="webgl-support">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">SIMD Support:</span>
+                    <span class="info-value" id="simd-support">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Threading Support:</span>
+                    <span class="info-value" id="threading-support">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Renderer Demo -->
+        <div class="demo-section">
+            <h2>Renderer Demo</h2>
+            <div class="canvas-container">
+                <canvas id="main-canvas" width="800" height="400"></canvas>
+            </div>
+            <div class="controls">
+                <button class="btn" id="start-render-btn" disabled>Start Rendering</button>
+                <button class="btn secondary" id="clear-canvas-btn" disabled>Clear Canvas</button>
+                <button class="btn secondary" id="toggle-wireframe-btn" disabled>Toggle Wireframe</button>
+            </div>
+            <div class="input-group">
+                <label for="clear-color">Clear Color:</label>
+                <input type="color" id="clear-color" value="#000000">
+            </div>
+        </div>
+        
+        <!-- Audio Demo -->
+        <div class="demo-section">
+            <h2>Audio Demo</h2>
+            <div class="controls">
+                <button class="btn" id="play-tone-btn" disabled>Play Tone</button>
+                <button class="btn secondary" id="stop-audio-btn" disabled>Stop Audio</button>
+                <button class="btn secondary" id="toggle-3d-audio-btn" disabled>Toggle 3D Audio</button>
+            </div>
+            <div class="input-group">
+                <label for="tone-frequency">Frequency:</label>
+                <input type="range" id="tone-frequency" min="100" max="2000" value="440">
+                <span id="frequency-value">440 Hz</span>
+            </div>
+            <div class="input-group">
+                <label for="master-volume">Master Volume:</label>
+                <input type="range" id="master-volume" min="0" max="100" value="50">
+                <span id="volume-value">50%</span>
+            </div>
+        </div>
+        
+        <!-- Input Demo -->
+        <div class="demo-section">
+            <h2>Input Demo</h2>
+            <div class="controls">
+                <button class="btn" id="test-keyboard-btn" disabled>Test Keyboard</button>
+                <button class="btn secondary" id="test-mouse-btn" disabled>Test Mouse</button>
+                <button class="btn secondary" id="lock-pointer-btn" disabled>Lock Pointer</button>
+            </div>
+            <div class="info-panel">
+                <div class="info-row">
+                    <span class="info-label">Last Key:</span>
+                    <span class="info-value" id="last-key">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Mouse Position:</span>
+                    <span class="info-value" id="mouse-position">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Mouse Buttons:</span>
+                    <span class="info-value" id="mouse-buttons">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance Monitor -->
+        <div class="demo-section">
+            <h2>Performance Monitor</h2>
+            <div class="info-panel">
+                <div class="info-row">
+                    <span class="info-label">FPS:</span>
+                    <span class="info-value" id="fps-display">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Frame Time:</span>
+                    <span class="info-value" id="frame-time-display">0.00 ms</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Memory Used:</span>
+                    <span class="info-value" id="memory-display">0 MB</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Draw Calls:</span>
+                    <span class="info-value" id="draw-calls-display">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug Log -->
+        <div class="demo-section">
+            <h2>Debug Log</h2>
+            <div class="controls">
+                <button class="btn danger" id="clear-log-btn">Clear Log</button>
+                <button class="btn secondary" id="test-error-btn">Test Error</button>
+            </div>
+            <div class="log-output" id="log-output"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Application state
+        let app = null;
+        let isRendering = false;
+        let isAudioPlaying = false;
+        let is3DAudio = false;
+        let currentToneSource = null;
+        
+        // DOM elements
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const logOutput = document.getElementById('log-output');
+        const canvas = document.getElementById('main-canvas');
+        
+        // Logging functions
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logOutput.appendChild(entry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+            
+            console.log(`[ECScope Demo] ${message}`);
+        }
+        
+        function updateStatus(status, text) {
+            statusIndicator.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+        }
+        
+        function enableControls(enable = true) {
+            const buttons = document.querySelectorAll('.btn[disabled]');
+            buttons.forEach(btn => {
+                if (enable) {
+                    btn.removeAttribute('disabled');
+                } else {
+                    btn.setAttribute('disabled', 'true');
+                }
+            });
+        }
+        
+        // Initialize ECScope application
+        async function initializeECScope() {
+            try {
+                updateStatus('loading', 'Loading ECScope...');
+                log('Starting ECScope initialization');
+                
+                // Wait for ECScope to be ready
+                if (!window.ECScope || !window.ECScope.ready) {
+                    await new Promise((resolve, reject) => {
+                        window.addEventListener('ecscopeready', resolve);
+                        window.addEventListener('ecscopeerror', reject);
+                        setTimeout(() => reject(new Error('Timeout waiting for ECScope')), 30000);
+                    });
+                }
+                
+                log('ECScope module loaded successfully');
+                
+                // Create application
+                const config = {
+                    canvas: canvas,
+                    title: 'ECScope Basic Demo',
+                    width: 800,
+                    height: 400,
+                    webgl: {
+                        alpha: false,
+                        depth: true,
+                        antialias: true
+                    },
+                    audio: {
+                        enableSpatialAudio: true,
+                        enableEffects: true
+                    },
+                    enableInput: true,
+                    enablePerformanceMonitoring: true
+                };
+                
+                app = new ECScope.Application(config);
+                
+                // Set up event handlers
+                app.on('error', (error) => {
+                    log(`Error: ${error.message}`, 'error');
+                    updateStatus('error', 'Error occurred');
+                });
+                
+                app.on('performance', updatePerformanceDisplay);
+                
+                app.on('input', (event) => {
+                    handleInputEvent(event);
+                });
+                
+                app.on('ready', () => {
+                    log('ECScope application ready!');
+                    updateStatus('ready', 'Ready');
+                    enableControls(true);
+                    displaySystemInfo();
+                });
+                
+                // Initialize the application
+                updateStatus('loading', 'Initializing application...');
+                await app.initialize();
+                
+            } catch (error) {
+                log(`Initialization failed: ${error.message}`, 'error');
+                updateStatus('error', 'Initialization failed');
+            }
+        }
+        
+        function displaySystemInfo() {
+            if (!app) return;
+            
+            try {
+                const capabilities = app.getBrowserCapabilities();
+                
+                document.getElementById('version').textContent = ECScope.version || '1.0.0';
+                document.getElementById('browser-info').textContent = 
+                    navigator.userAgent.split(' ').slice(-2).join(' ');
+                document.getElementById('webgl-support').textContent = 
+                    capabilities.webgl2Support ? 'Yes' : 'No';
+                document.getElementById('simd-support').textContent = 
+                    capabilities.simdSupport ? 'Yes' : 'No';
+                document.getElementById('threading-support').textContent = 
+                    capabilities.threadsSupport ? 'Yes' : 'No';
+                
+                log('System information displayed');
+            } catch (error) {
+                log(`Error displaying system info: ${error.message}`, 'error');
+            }
+        }
+        
+        function updatePerformanceDisplay(metrics) {
+            document.getElementById('fps-display').textContent = metrics.fps || 0;
+            document.getElementById('frame-time-display').textContent = 
+                (metrics.frameTimeMs || 0).toFixed(2) + ' ms';
+            document.getElementById('memory-display').textContent = 
+                Math.round((metrics.memory?.heapUsed || 0) / (1024 * 1024)) + ' MB';
+            document.getElementById('draw-calls-display').textContent = metrics.drawCalls || 0;
+        }
+        
+        function handleInputEvent(event) {
+            switch (event.type) {
+                case ECScope.InputEventType.KeyDown:
+                    document.getElementById('last-key').textContent = event.key || 'Unknown';
+                    break;
+                    
+                case ECScope.InputEventType.MouseMove:
+                    document.getElementById('mouse-position').textContent = 
+                        `${Math.round(event.mouseX || 0)}, ${Math.round(event.mouseY || 0)}`;
+                    break;
+                    
+                case ECScope.InputEventType.MouseDown:
+                case ECScope.InputEventType.MouseUp:
+                    const buttonNames = ['Left', 'Middle', 'Right', 'Back', 'Forward'];
+                    const buttonName = buttonNames[event.mouseButton] || 'Unknown';
+                    document.getElementById('mouse-buttons').textContent = 
+                        `${buttonName} ${event.type === ECScope.InputEventType.MouseDown ? 'Down' : 'Up'}`;
+                    break;
+            }
+        }
+        
+        // Renderer controls
+        document.getElementById('start-render-btn').addEventListener('click', () => {
+            if (!app) return;
+            
+            isRendering = !isRendering;
+            const btn = document.getElementById('start-render-btn');
+            
+            if (isRendering) {
+                btn.textContent = 'Stop Rendering';
+                log('Started rendering demo');
+                startRenderDemo();
+            } else {
+                btn.textContent = 'Start Rendering';
+                log('Stopped rendering demo');
+            }
+        });
+        
+        document.getElementById('clear-canvas-btn').addEventListener('click', () => {
+            if (!app) return;
+            
+            try {
+                const renderer = app.getRenderer();
+                renderer.clear(0, 0, 0, 1);
+                log('Canvas cleared');
+            } catch (error) {
+                log(`Error clearing canvas: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('clear-color').addEventListener('change', (event) => {
+            const color = event.target.value;
+            log(`Clear color changed to ${color}`);
+        });
+        
+        function startRenderDemo() {
+            if (!isRendering || !app) return;
+            
+            try {
+                const renderer = app.getRenderer();
+                const colorInput = document.getElementById('clear-color');
+                const color = hexToRgb(colorInput.value);
+                
+                renderer.beginFrame();
+                renderer.clear(color.r / 255, color.g / 255, color.b / 255, 1);
+                
+                // Draw a simple rotating triangle (placeholder)
+                // In a real implementation, this would draw actual geometry
+                
+                renderer.endFrame();
+                
+                if (isRendering) {
+                    requestAnimationFrame(startRenderDemo);
+                }
+            } catch (error) {
+                log(`Render error: ${error.message}`, 'error');
+                isRendering = false;
+                document.getElementById('start-render-btn').textContent = 'Start Rendering';
+            }
+        }
+        
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : {r: 0, g: 0, b: 0};
+        }
+        
+        // Audio controls
+        document.getElementById('play-tone-btn').addEventListener('click', () => {
+            if (!app) return;
+            
+            try {
+                const audio = app.getAudio();
+                const frequency = parseInt(document.getElementById('tone-frequency').value);
+                
+                if (isAudioPlaying && currentToneSource) {
+                    audio.stopSource(currentToneSource);
+                }
+                
+                currentToneSource = audio.generateTone(frequency, 2.0, 0.5, 'sine');
+                audio.playSource(currentToneSource);
+                isAudioPlaying = true;
+                
+                log(`Playing tone at ${frequency} Hz`);
+                
+                setTimeout(() => {
+                    isAudioPlaying = false;
+                    currentToneSource = null;
+                }, 2000);
+                
+            } catch (error) {
+                log(`Audio error: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('stop-audio-btn').addEventListener('click', () => {
+            if (!app || !currentToneSource) return;
+            
+            try {
+                const audio = app.getAudio();
+                audio.stopSource(currentToneSource);
+                isAudioPlaying = false;
+                currentToneSource = null;
+                log('Audio stopped');
+            } catch (error) {
+                log(`Error stopping audio: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('tone-frequency').addEventListener('input', (event) => {
+            document.getElementById('frequency-value').textContent = `${event.target.value} Hz`;
+        });
+        
+        document.getElementById('master-volume').addEventListener('input', (event) => {
+            if (!app) return;
+            
+            const volume = parseInt(event.target.value) / 100;
+            document.getElementById('volume-value').textContent = `${event.target.value}%`;
+            
+            try {
+                const audio = app.getAudio();
+                audio.setMasterVolume(volume);
+                log(`Volume set to ${event.target.value}%`);
+            } catch (error) {
+                log(`Error setting volume: ${error.message}`, 'error');
+            }
+        });
+        
+        // Input controls
+        document.getElementById('test-keyboard-btn').addEventListener('click', () => {
+            log('Press any key to test keyboard input...');
+        });
+        
+        document.getElementById('test-mouse-btn').addEventListener('click', () => {
+            log('Move mouse over canvas to test mouse input...');
+        });
+        
+        document.getElementById('lock-pointer-btn').addEventListener('click', () => {
+            if (!app) return;
+            
+            try {
+                const input = app.getInput();
+                if (input.isPointerLocked()) {
+                    input.unlockPointer();
+                    log('Pointer unlocked');
+                } else {
+                    input.lockPointer();
+                    log('Pointer locked');
+                }
+            } catch (error) {
+                log(`Pointer lock error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Debug controls
+        document.getElementById('clear-log-btn').addEventListener('click', () => {
+            logOutput.innerHTML = '';
+        });
+        
+        document.getElementById('test-error-btn').addEventListener('click', () => {
+            log('This is a test error message', 'error');
+        });
+        
+        // Handle page visibility
+        document.addEventListener('visibilitychange', () => {
+            if (app) {
+                app.setVisibility(!document.hidden);
+                log(`Page visibility: ${document.hidden ? 'hidden' : 'visible'}`);
+            }
+        });
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            log('Page loaded, initializing ECScope...');
+            initializeECScope();
+        });
+        
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            log(`Global error: ${event.error?.message || event.message}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`Unhandled promise rejection: ${event.reason}`, 'error');
+        });
+    </script>
+    
+    <!-- Load ECScope WebAssembly module -->
+    <script src="../dist/ecscope.js"></script>
+</body>
+</html>

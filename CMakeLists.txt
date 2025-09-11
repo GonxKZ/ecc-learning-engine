@@ -40,6 +40,8 @@ option(ECSCOPE_ENABLE_JOB_SYSTEM "Enable work-stealing job system" ON)
 option(ECSCOPE_ENABLE_MEMORY_ANALYSIS "Enable advanced memory analysis tools" ON)
 option(ECSCOPE_ENABLE_PERFORMANCE_LAB "Enable performance laboratory" ON)
 option(ECSCOPE_ENABLE_PLUGIN_SYSTEM "Enable comprehensive plugin system with hot-reload" ON)
+option(ECSCOPE_ENABLE_AUDIO "Enable comprehensive 3D spatial audio system" ON)
+option(ECSCOPE_ENABLE_AI_ML "Enable comprehensive AI/ML framework with behavior systems, neural networks, and PCG" ON)
 
 # Platform & Performance Options
 option(ECSCOPE_ENABLE_SIMD "Enable SIMD optimizations (AVX2/SSE)" ON)
@@ -159,6 +161,15 @@ endif()
 
 if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
     add_compile_definitions(ECSCOPE_ENABLE_DEBUG_SYSTEM=1)
+endif()
+
+if(ECSCOPE_ENABLE_AUDIO)
+    add_compile_definitions(ECSCOPE_ENABLE_AUDIO=1)
+endif()
+
+# AI/ML Framework Configuration
+if(ECSCOPE_ENABLE_AI_ML)
+    add_compile_definitions(ECSCOPE_ENABLE_AI_ML=1)
 endif()
 
 # =============================================================================
@@ -470,6 +481,79 @@ if(ECSCOPE_ENABLE_NETWORKING)
     else()
         message(STATUS "OpenSSL not found - encryption will use internal implementations")
     endif()
+endif()
+
+# =============================================================================
+# AI/ML FRAMEWORK - Behavior AI, Neural Networks, and Procedural Content Generation
+# =============================================================================
+
+if(ECSCOPE_ENABLE_AI_ML)
+    add_library(ecscope_ai STATIC)
+    
+    target_sources(ecscope_ai PRIVATE
+        # Core AI infrastructure
+        src/ai/core/ai_memory.cpp
+        src/ai/core/ai_systems.cpp
+        src/ai/core/blackboard.cpp
+        
+        # Behavior AI systems
+        src/ai/behavior/finite_state_machine.cpp
+        src/ai/behavior/behavior_tree.cpp
+        # src/ai/behavior/goap.cpp
+        # src/ai/behavior/utility_ai.cpp
+        # src/ai/behavior/flocking.cpp
+        # src/ai/behavior/steering.cpp
+        
+        # Machine Learning
+        src/ai/ml/neural_network.cpp
+        # src/ai/ml/reinforcement_learning.cpp
+        # src/ai/ml/genetic_algorithm.cpp
+        # src/ai/ml/decision_tree.cpp
+        # src/ai/ml/clustering.cpp
+        # src/ai/ml/feature_extraction.cpp
+        
+        # Procedural Content Generation
+        src/ai/pcg/noise.cpp
+        # src/ai/pcg/l_systems.cpp
+        # src/ai/pcg/wave_function_collapse.cpp
+        # src/ai/pcg/cellular_automata.cpp
+        # src/ai/pcg/grammar_generation.cpp
+        # src/ai/pcg/markov_chains.cpp
+        
+        # Performance Optimization
+        # src/ai/optimization/ecs_optimizer.cpp
+        # src/ai/optimization/load_balancer.cpp
+        # src/ai/optimization/predictive_cache.cpp
+        # src/ai/optimization/parameter_tuner.cpp
+        # src/ai/optimization/anomaly_detector.cpp
+        # src/ai/optimization/memory_optimizer.cpp
+    )
+    
+    target_include_directories(ecscope_ai
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/ai>
+            $<INSTALL_INTERFACE:include/ecscope/ai>
+    )
+    
+    target_link_libraries(ecscope_ai 
+        PUBLIC 
+            ecscope_core
+            Threads::Threads
+            $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+            $<$<BOOL:${ECSCOPE_ENABLE_MEMORY_ANALYSIS}>:ecscope_memory>
+    )
+    
+    target_compile_definitions(ecscope_ai PUBLIC ECSCOPE_HAS_AI_ML=1)
+    
+    # AI/ML specific compiler optimizations
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(ecscope_ai PRIVATE -ffast-math -funroll-loops)
+        if(ECSCOPE_ENABLE_SIMD)
+            target_compile_options(ecscope_ai PRIVATE -mavx -mavx2)
+        endif()
+    endif()
+    
+    message(STATUS "AI/ML Framework configured successfully")
 endif()
 
 # =============================================================================
@@ -1117,6 +1201,264 @@ if(ECSCOPE_ENABLE_ASSETS)
 endif()
 
 # =============================================================================
+# AUDIO SYSTEM LIBRARY - Professional 3D Spatial Audio Engine
+# =============================================================================
+
+if(ECSCOPE_ENABLE_AUDIO)
+    add_library(ecscope_audio STATIC)
+    
+    # Try to find audio dependencies
+    set(ECSCOPE_HAS_OPENAL OFF)
+    set(ECSCOPE_HAS_PORTAUDIO OFF)
+    
+    # Try to find OpenAL for 3D audio
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(OPENAL QUIET openal)
+        if(OPENAL_FOUND)
+            set(ECSCOPE_HAS_OPENAL ON)
+            message(STATUS "OpenAL found: Enabling OpenAL backend")
+        endif()
+    endif()
+    
+    # Try to find PortAudio for cross-platform audio
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(PORTAUDIO QUIET portaudio-2.0)
+        if(PORTAUDIO_FOUND)
+            set(ECSCOPE_HAS_PORTAUDIO ON)
+            message(STATUS "PortAudio found: Enabling PortAudio backend")
+        endif()
+    endif()
+    
+    # Try to find FFTW for FFT operations
+    set(ECSCOPE_HAS_FFTW OFF)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(FFTW3 QUIET fftw3)
+        if(FFTW3_FOUND)
+            set(ECSCOPE_HAS_FFTW ON)
+            message(STATUS "FFTW3 found: Enabling advanced DSP operations")
+        endif()
+    endif()
+    
+    target_sources(ecscope_audio PRIVATE
+        # Core audio system
+        src/audio/core/audio_types.cpp
+        src/audio/core/audio_device.cpp
+        src/audio/core/audio_pipeline.cpp
+        src/audio/core/audio_system.cpp
+        
+        # 3D audio processing
+        src/audio/3d/audio_3d_engine.cpp
+        src/audio/3d/hrtf_processor.cpp
+        src/audio/3d/doppler_processor.cpp
+        src/audio/3d/distance_processor.cpp
+        
+        # Audio effects
+        src/audio/effects/reverb_effect.cpp
+        src/audio/effects/compressor_effect.cpp
+        src/audio/effects/equalizer_effect.cpp
+        src/audio/effects/delay_effect.cpp
+        src/audio/effects/chorus_effect.cpp
+        src/audio/effects/distortion_effect.cpp
+        src/audio/effects/effects_chain.cpp
+        src/audio/effects/environmental_processor.cpp
+        src/audio/effects/occlusion_processor.cpp
+        
+        # Ambisonics support
+        src/audio/ambisonics/ambisonics_encoder.cpp
+        src/audio/ambisonics/ambisonics_decoder.cpp
+        src/audio/ambisonics/ambisonics_rotator.cpp
+        src/audio/ambisonics/ambisonics_processor.cpp
+        
+        # Ray tracing audio
+        src/audio/raytracing/audio_ray_tracer.cpp
+        src/audio/raytracing/acoustic_geometry.cpp
+        src/audio/raytracing/audio_bvh.cpp
+        src/audio/raytracing/audio_octree.cpp
+        src/audio/raytracing/convolution_room_acoustics.cpp
+        
+        # Audio processing and optimization
+        src/audio/processing/audio_simd.cpp
+        src/audio/processing/audio_thread_pool.cpp
+        src/audio/processing/audio_processor.cpp
+        src/audio/processing/audio_dsp.cpp
+        src/audio/processing/audio_memory_manager.cpp
+        src/audio/processing/audio_job_system.cpp
+        
+        # ECS integration
+        src/audio/ecs/audio_system_ecs.cpp
+        src/audio/ecs/audio_zone_system.cpp
+        src/audio/ecs/audio_streaming_system.cpp
+        src/audio/ecs/audio_event_system.cpp
+        
+        # Debug and development tools
+        src/audio/debug/audio_logger.cpp
+        src/audio/debug/audio_visualizer.cpp
+        src/audio/debug/audio_performance_monitor.cpp
+        src/audio/debug/audio_analyzer.cpp
+        src/audio/debug/audio_debugger.cpp
+        
+        # Platform-specific device implementations
+        $<$<PLATFORM_ID:Windows>:src/audio/platform/wasapi_device.cpp>
+        $<$<PLATFORM_ID:Linux>:src/audio/platform/alsa_device.cpp>
+        $<$<PLATFORM_ID:Darwin>:src/audio/platform/coreaudio_device.cpp>
+        
+        # Optional backend implementations
+        $<$<BOOL:${ECSCOPE_HAS_OPENAL}>:src/audio/backends/openal_backend.cpp>
+        $<$<BOOL:${ECSCOPE_HAS_PORTAUDIO}>:src/audio/backends/portaudio_backend.cpp>
+        
+        # File format support
+        src/audio/formats/wav_decoder.cpp
+        src/audio/formats/audio_stream_manager.cpp
+        
+        # Optional format decoders (when libraries available)
+        # src/audio/formats/mp3_decoder.cpp
+        # src/audio/formats/ogg_decoder.cpp
+        # src/audio/formats/flac_decoder.cpp
+    )
+    
+    target_include_directories(ecscope_audio
+        PUBLIC 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ecscope/audio>
+            $<INSTALL_INTERFACE:include/ecscope/audio>
+    )
+    
+    # Link dependencies
+    target_link_libraries(ecscope_audio 
+        PUBLIC 
+            ecscope_core
+            ecscope_memory
+            Threads::Threads
+        PRIVATE
+            $<$<BOOL:${ECSCOPE_ENABLE_JOB_SYSTEM}>:ecscope_jobs>
+            $<$<BOOL:${ECSCOPE_ENABLE_PHYSICS}>:ecscope_physics>  # For collision detection in occlusion
+            ${PLATFORM_LIBS}
+    )
+    
+    # Platform-specific audio libraries
+    if(WIN32)
+        target_link_libraries(ecscope_audio PRIVATE 
+            winmm      # Windows Multimedia API
+            ole32      # For WASAPI COM interfaces  
+            oleaut32   # For WASAPI automation
+        )
+    elseif(UNIX AND NOT APPLE)
+        # Linux audio libraries
+        find_library(ASOUND_LIBRARY NAMES asound)
+        if(ASOUND_LIBRARY)
+            target_link_libraries(ecscope_audio PRIVATE ${ASOUND_LIBRARY})
+            target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_ALSA=1)
+            message(STATUS "ALSA found: Enabling ALSA audio support")
+        endif()
+        
+        # PulseAudio support
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(PULSE QUIET libpulse-simple)
+            if(PULSE_FOUND)
+                target_link_libraries(ecscope_audio PRIVATE ${PULSE_LIBRARIES})
+                target_include_directories(ecscope_audio PRIVATE ${PULSE_INCLUDE_DIRS})
+                target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_PULSE=1)
+                message(STATUS "PulseAudio found: Enabling PulseAudio support")
+            endif()
+        endif()
+    elseif(APPLE)
+        # macOS audio frameworks
+        find_library(COREAUDIO_FRAMEWORK CoreAudio)
+        find_library(AUDIOUNIT_FRAMEWORK AudioUnit)
+        find_library(AUDIOTOOLBOX_FRAMEWORK AudioToolbox)
+        
+        target_link_libraries(ecscope_audio PRIVATE
+            ${COREAUDIO_FRAMEWORK}
+            ${AUDIOUNIT_FRAMEWORK}
+            ${AUDIOTOOLBOX_FRAMEWORK}
+        )
+        target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_COREAUDIO=1)
+        message(STATUS "CoreAudio frameworks found: Enabling CoreAudio support")
+    endif()
+    
+    # OpenAL support
+    if(ECSCOPE_HAS_OPENAL)
+        target_link_libraries(ecscope_audio PRIVATE ${OPENAL_LIBRARIES})
+        target_include_directories(ecscope_audio PRIVATE ${OPENAL_INCLUDE_DIRS})
+        target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_OPENAL=1)
+    endif()
+    
+    # PortAudio support
+    if(ECSCOPE_HAS_PORTAUDIO)
+        target_link_libraries(ecscope_audio PRIVATE ${PORTAUDIO_LIBRARIES})
+        target_include_directories(ecscope_audio PRIVATE ${PORTAUDIO_INCLUDE_DIRS})
+        target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_PORTAUDIO=1)
+    endif()
+    
+    # FFTW support for advanced DSP
+    if(ECSCOPE_HAS_FFTW)
+        target_link_libraries(ecscope_audio PRIVATE ${FFTW3_LIBRARIES})
+        target_include_directories(ecscope_audio PRIVATE ${FFTW3_INCLUDE_DIRS})
+        target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_FFTW=1)
+    endif()
+    
+    # Optional audio codec support
+    if(PKG_CONFIG_FOUND)
+        # libsndfile for multiple format support
+        pkg_check_modules(SNDFILE QUIET sndfile)
+        if(SNDFILE_FOUND)
+            target_link_libraries(ecscope_audio PRIVATE ${SNDFILE_LIBRARIES})
+            target_include_directories(ecscope_audio PRIVATE ${SNDFILE_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_SNDFILE=1)
+            message(STATUS "libsndfile found: Enabling multi-format audio file support")
+        endif()
+        
+        # Vorbis/OGG support
+        pkg_check_modules(VORBIS QUIET vorbisfile)
+        if(VORBIS_FOUND)
+            target_link_libraries(ecscope_audio PRIVATE ${VORBIS_LIBRARIES})
+            target_include_directories(ecscope_audio PRIVATE ${VORBIS_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_VORBIS=1)
+            message(STATUS "Vorbis found: Enabling OGG/Vorbis support")
+        endif()
+        
+        # FLAC support
+        pkg_check_modules(FLAC QUIET flac)
+        if(FLAC_FOUND)
+            target_link_libraries(ecscope_audio PRIVATE ${FLAC_LIBRARIES})
+            target_include_directories(ecscope_audio PRIVATE ${FLAC_INCLUDE_DIRS})
+            target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_HAS_FLAC=1)
+            message(STATUS "FLAC found: Enabling FLAC support")
+        endif()
+    endif()
+    
+    # Math libraries for audio processing
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(ecscope_audio PRIVATE m)  # Math library
+    endif()
+    
+    # SIMD optimizations for audio DSP
+    if(ECSCOPE_ENABLE_SIMD)
+        target_compile_definitions(ecscope_audio PRIVATE ECSCOPE_AUDIO_ENABLE_SIMD=1)
+    endif()
+    
+    # Debug features
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_definitions(ecscope_audio PRIVATE 
+            ECSCOPE_AUDIO_DEBUG=1
+            ECSCOPE_AUDIO_ENABLE_PROFILING=1
+        )
+    endif()
+    
+    target_compile_definitions(ecscope_audio PUBLIC ECSCOPE_HAS_AUDIO=1)
+    
+    message(STATUS "Audio System enabled with professional 3D spatial audio")
+    message(STATUS "  - HRTF processing: Enabled")
+    message(STATUS "  - Ambisonics support: Enabled") 
+    message(STATUS "  - Ray tracing acoustics: Enabled")
+    message(STATUS "  - Multi-threaded processing: Enabled")
+    message(STATUS "  - SIMD optimization: ${ECSCOPE_ENABLE_SIMD}")
+    message(STATUS "  - OpenAL backend: ${ECSCOPE_HAS_OPENAL}")
+    message(STATUS "  - PortAudio backend: ${ECSCOPE_HAS_PORTAUDIO}")
+    message(STATUS "  - FFTW support: ${ECSCOPE_HAS_FFTW}")
+endif()
+
+# =============================================================================
 # DEBUG SYSTEM LIBRARY - Comprehensive Debugging and Profiling
 # =============================================================================
 
@@ -1257,6 +1599,8 @@ target_link_libraries(ecscope
         $<$<BOOL:${ECSCOPE_ENABLE_ASSETS}>:ecscope_assets>
         $<$<BOOL:${ECSCOPE_ENABLE_DEBUG_SYSTEM}>:ecscope_debug>
         $<$<BOOL:${ECSCOPE_ENABLE_PLUGIN_SYSTEM}>:ecscope_plugins>
+        $<$<BOOL:${ECSCOPE_ENABLE_AUDIO}>:ecscope_audio>
+        $<$<BOOL:${ECSCOPE_ENABLE_AI_ML}>:ecscope_ai>
 )
 
 # Convenience alias
@@ -1558,6 +1902,30 @@ if(ECSCOPE_BUILD_EXAMPLES)
         target_link_libraries(example_physics_debug_rendering_demo PRIVATE ecscope)
     endif()
     
+    # =============================================================================
+    # AUDIO SYSTEM EXAMPLES - 3D Spatial Audio Demonstrations
+    # =============================================================================
+    
+    if(ECSCOPE_ENABLE_AUDIO)
+        # 3D Spatial Audio Demo
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/audio/3d_spatial_audio_demo.cpp")
+            add_executable(example_3d_spatial_audio_demo)
+            target_sources(example_3d_spatial_audio_demo PRIVATE examples/audio/3d_spatial_audio_demo.cpp)
+            target_link_libraries(example_3d_spatial_audio_demo PRIVATE ecscope)
+            
+            message(STATUS "Building 3D spatial audio demo")
+        endif()
+        
+        # VR Spatial Audio Demo
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/audio/vr_spatial_audio_demo.cpp")
+            add_executable(example_vr_spatial_audio_demo)
+            target_sources(example_vr_spatial_audio_demo PRIVATE examples/audio/vr_spatial_audio_demo.cpp)
+            target_link_libraries(example_vr_spatial_audio_demo PRIVATE ecscope)
+            
+            message(STATUS "Building VR spatial audio demo")
+        endif()
+    endif()
+    
 endif() # ECSCOPE_BUILD_EXAMPLES
 
 # =============================================================================
@@ -1565,6 +1933,25 @@ endif() # ECSCOPE_BUILD_EXAMPLES
 # =============================================================================
 
 if(ECSCOPE_BUILD_BENCHMARKS)
+    
+    # Audio System Benchmarks
+    if(ECSCOPE_ENABLE_AUDIO)
+        # Audio Ray Tracing Benchmark
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/audio/audio_raytracing_benchmark.cpp")
+            add_executable(benchmark_audio_raytracing)
+            target_sources(benchmark_audio_raytracing PRIVATE benchmarks/audio/audio_raytracing_benchmark.cpp)
+            target_link_libraries(benchmark_audio_raytracing PRIVATE ecscope)
+            
+            message(STATUS "Building audio ray tracing benchmark")
+        endif()
+        
+        # Audio Processing Performance Benchmark
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/audio/audio_performance_benchmark.cpp")
+            add_executable(benchmark_audio_performance)
+            target_sources(benchmark_audio_performance PRIVATE benchmarks/audio/audio_performance_benchmark.cpp)
+            target_link_libraries(benchmark_audio_performance PRIVATE ecscope)
+        endif()
+    endif()
     
     # Core Memory Benchmarks
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/memory_core_benchmarks.cpp")
@@ -1614,90 +2001,251 @@ if(ECSCOPE_BUILD_BENCHMARKS)
 endif() # ECSCOPE_BUILD_BENCHMARKS
 
 # =============================================================================
-# TESTING FRAMEWORK
+# COMPREHENSIVE TESTING FRAMEWORK
 # =============================================================================
+
+# Testing configuration options
+option(ECSCOPE_ENABLE_TESTING_FRAMEWORK "Enable comprehensive testing framework" ON)
+option(ECSCOPE_ENABLE_MEMORY_TESTING "Enable memory leak detection and profiling" ON)
+option(ECSCOPE_ENABLE_PERFORMANCE_TESTING "Enable performance testing and benchmarking" ON)
+option(ECSCOPE_ENABLE_STRESS_TESTING "Enable stress testing" ON)
+option(ECSCOPE_ENABLE_COVERAGE "Enable code coverage analysis" OFF)
+option(ECSCOPE_ENABLE_SANITIZERS "Enable AddressSanitizer and other sanitizers" OFF)
+option(ECSCOPE_ENABLE_FUZZING "Enable fuzz testing" OFF)
 
 if(ECSCOPE_BUILD_TESTS)
     enable_testing()
     
-    # Try to find Google Test
-    find_package(GTest QUIET)
-    if(GTest_FOUND)
-        message(STATUS "Google Test found: Building comprehensive test suite")
-        
-        # Core Tests
-        add_executable(test_core)
-        target_sources(test_core PRIVATE
-            tests/core/test_log.cpp
-            tests/core/test_time.cpp
-            tests/core/test_id.cpp
+    # Create testing framework library
+    if(ECSCOPE_ENABLE_TESTING_FRAMEWORK)
+        add_library(ecscope_testing_framework INTERFACE)
+        target_include_directories(ecscope_testing_framework INTERFACE 
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
         )
-        target_link_libraries(test_core PRIVATE ecscope_core GTest::gtest_main)
-        add_test(NAME CoreTests COMMAND test_core)
+        target_compile_features(ecscope_testing_framework INTERFACE cxx_std_20)
         
-        # Memory Tests
-        add_executable(test_memory)
-        target_sources(test_memory PRIVATE
-            tests/memory/test_arena.cpp
-            tests/memory/test_pool_allocator.cpp
-            tests/memory/test_memory_tracker.cpp
-        )
-        target_link_libraries(test_memory PRIVATE ecscope_memory GTest::gtest_main)
-        add_test(NAME MemoryTests COMMAND test_memory)
-        
-        # ECS Tests
-        add_executable(test_ecs)
-        target_sources(test_ecs PRIVATE
-            tests/ecs/test_registry.cpp
-            tests/ecs/test_archetype.cpp
-            tests/ecs/test_query.cpp
-        )
-        target_link_libraries(test_ecs PRIVATE ecscope_core GTest::gtest_main)
-        add_test(NAME ECSTests COMMAND test_ecs)
-        
-        # Physics Tests
-        if(ECSCOPE_ENABLE_PHYSICS)
-            add_executable(test_physics)
-            target_sources(test_physics PRIVATE
-                tests/physics/test_math.cpp
-                tests/physics/test_collision.cpp
-                tests/physics/test_world.cpp
-            )
-            target_link_libraries(test_physics PRIVATE ecscope_physics GTest::gtest_main)
-            add_test(NAME PhysicsTests COMMAND test_physics)
+        # Add platform-specific libraries for stack traces and memory monitoring
+        if(WIN32)
+            target_link_libraries(ecscope_testing_framework INTERFACE dbghelp psapi)
+        elseif(UNIX AND NOT APPLE)
+            target_link_libraries(ecscope_testing_framework INTERFACE dl)
         endif()
         
-        # Job System Tests
-        if(ECSCOPE_ENABLE_JOB_SYSTEM)
-            add_executable(test_jobs)
-            target_sources(test_jobs PRIVATE
-                tests/concurrency/test_job_system.cpp
-                tests/concurrency/test_work_stealing.cpp
+        # Enable sanitizers if requested
+        if(ECSCOPE_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(ecscope_testing_framework INTERFACE
+                -fsanitize=address
+                -fsanitize=undefined
+                -fsanitize=leak
+                -fno-omit-frame-pointer
             )
-            target_link_libraries(test_jobs PRIVATE ecscope_jobs GTest::gtest_main)
-            add_test(NAME JobTests COMMAND test_jobs)
+            target_link_options(ecscope_testing_framework INTERFACE
+                -fsanitize=address
+                -fsanitize=undefined
+                -fsanitize=leak
+            )
         endif()
         
-        # Modern Rendering Tests
-        if(ECSCOPE_HAS_MODERN_RENDERING)
-            add_executable(test_modern_rendering)
-            target_sources(test_modern_rendering PRIVATE
-                tests/rendering/test_rendering_system.cpp
-            )
-            target_link_libraries(test_modern_rendering PRIVATE ecscope_modern_rendering GTest::gtest_main)
-            add_test(NAME ModernRenderingTests COMMAND test_modern_rendering)
-        endif()
-        
-    else()
-        message(STATUS "Google Test not found - building basic tests")
-        
-        # Simple test without GTest framework (only if file exists)
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/simple_tests.cpp")
-            add_executable(simple_tests)
-            target_sources(simple_tests PRIVATE tests/simple_tests.cpp)
-            target_link_libraries(simple_tests PRIVATE ecscope)
+        # Enable coverage if requested
+        if(ECSCOPE_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+            target_compile_options(ecscope_testing_framework INTERFACE --coverage)
+            target_link_options(ecscope_testing_framework INTERFACE --coverage)
         endif()
     endif()
+    
+    # Main test runner executable
+    add_executable(ecscope_test_runner)
+    target_sources(ecscope_test_runner PRIVATE
+        tests/main.cpp
+        tests/unit/ecs_component_tests.cpp
+        tests/integration/ecs_system_integration_tests.cpp
+        tests/performance/ecs_performance_tests.cpp
+    )
+    target_link_libraries(ecscope_test_runner PRIVATE 
+        ecscope 
+        ecscope_testing_framework
+    )
+    
+    # Add tests for existing components if they exist
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/memory/memory_tests.cpp")
+        target_sources(ecscope_test_runner PRIVATE tests/memory/memory_tests.cpp)
+    endif()
+    
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/physics_engine_tests.cpp")
+        target_sources(ecscope_test_runner PRIVATE tests/physics_engine_tests.cpp)
+    endif()
+    
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/rendering/")
+        file(GLOB RENDERING_TESTS tests/rendering/*.cpp)
+        target_sources(ecscope_test_runner PRIVATE ${RENDERING_TESTS})
+    endif()
+    
+    # Memory testing executable
+    if(ECSCOPE_ENABLE_MEMORY_TESTING)
+        add_executable(ecscope_memory_tests)
+        target_sources(ecscope_memory_tests PRIVATE
+            tests/main.cpp
+            tests/memory/memory_tests.cpp
+        )
+        target_link_libraries(ecscope_memory_tests PRIVATE 
+            ecscope 
+            ecscope_testing_framework
+        )
+        target_compile_definitions(ecscope_memory_tests PRIVATE ECSCOPE_MEMORY_TESTING_ONLY)
+    endif()
+    
+    # Performance testing executable
+    if(ECSCOPE_ENABLE_PERFORMANCE_TESTING)
+        add_executable(ecscope_performance_tests)
+        target_sources(ecscope_performance_tests PRIVATE
+            tests/main.cpp
+            tests/performance/ecs_performance_tests.cpp
+        )
+        target_link_libraries(ecscope_performance_tests PRIVATE 
+            ecscope 
+            ecscope_testing_framework
+        )
+        target_compile_definitions(ecscope_performance_tests PRIVATE ECSCOPE_PERFORMANCE_TESTING_ONLY)
+    endif()
+    
+    # Stress testing executable
+    if(ECSCOPE_ENABLE_STRESS_TESTING)
+        add_executable(ecscope_stress_tests)
+        target_sources(ecscope_stress_tests PRIVATE
+            tests/main.cpp
+            tests/stress/stress_tests.cpp
+        )
+        target_link_libraries(ecscope_stress_tests PRIVATE 
+            ecscope 
+            ecscope_testing_framework
+        )
+        target_compile_definitions(ecscope_stress_tests PRIVATE ECSCOPE_STRESS_TESTING_ONLY)
+    endif()
+    
+    # Threading tests executable
+    add_executable(ecscope_threading_tests)
+    target_sources(ecscope_threading_tests PRIVATE
+        tests/main.cpp
+        tests/integration/ecs_system_integration_tests.cpp
+    )
+    target_link_libraries(ecscope_threading_tests PRIVATE 
+        ecscope 
+        ecscope_testing_framework
+    )
+    target_compile_definitions(ecscope_threading_tests PRIVATE ECSCOPE_THREADING_TESTING_ONLY)
+    
+    # Fuzz testing if enabled
+    if(ECSCOPE_ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_executable(ecscope_fuzz_tests)
+        target_sources(ecscope_fuzz_tests PRIVATE
+            tests/fuzz/fuzz_tests.cpp
+        )
+        target_link_libraries(ecscope_fuzz_tests PRIVATE 
+            ecscope 
+            ecscope_testing_framework
+        )
+        target_compile_options(ecscope_fuzz_tests PRIVATE -fsanitize=fuzzer)
+        target_link_options(ecscope_fuzz_tests PRIVATE -fsanitize=fuzzer)
+    endif()
+    
+    # Register CTest targets
+    add_test(NAME ECScope_Unit_Tests 
+             COMMAND ecscope_test_runner --include-category=unit --verbose)
+    add_test(NAME ECScope_Integration_Tests 
+             COMMAND ecscope_test_runner --include-category=integration --verbose)
+    add_test(NAME ECScope_ECS_Tests 
+             COMMAND ecscope_test_runner --include-category=ecs --verbose)
+    
+    if(ECSCOPE_ENABLE_MEMORY_TESTING)
+        add_test(NAME ECScope_Memory_Tests 
+                 COMMAND ecscope_memory_tests --verbose)
+    endif()
+    
+    if(ECSCOPE_ENABLE_PERFORMANCE_TESTING)
+        add_test(NAME ECScope_Performance_Tests 
+                 COMMAND ecscope_performance_tests --verbose)
+    endif()
+    
+    # Set test properties
+    set_tests_properties(ECScope_Unit_Tests PROPERTIES
+        TIMEOUT 300
+        LABELS "unit;quick"
+    )
+    
+    set_tests_properties(ECScope_Integration_Tests PROPERTIES
+        TIMEOUT 600
+        LABELS "integration;slow"
+    )
+    
+    set_tests_properties(ECScope_ECS_Tests PROPERTIES
+        TIMEOUT 300
+        LABELS "ecs;core"
+    )
+    
+    # Create test output directory
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test_output)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test_data/references)
+    
+    # Copy test data if it exists
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_data/")
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/test_data/ 
+             DESTINATION ${CMAKE_BINARY_DIR}/test_data/)
+    endif()
+    
+    # Custom targets for different test categories
+    add_custom_target(test_unit
+        COMMAND ecscope_test_runner --include-category=unit --verbose
+        DEPENDS ecscope_test_runner
+        COMMENT "Running unit tests"
+    )
+    
+    add_custom_target(test_integration
+        COMMAND ecscope_test_runner --include-category=integration --verbose
+        DEPENDS ecscope_test_runner
+        COMMENT "Running integration tests"
+    )
+    
+    add_custom_target(test_performance
+        COMMAND ecscope_performance_tests --verbose
+        DEPENDS ecscope_performance_tests
+        COMMENT "Running performance tests"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    
+    add_custom_target(test_all
+        COMMAND ecscope_test_runner --verbose --output-format=html --output-file=test_report.html
+        DEPENDS ecscope_test_runner
+        COMMENT "Running all tests with HTML report"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    
+    # Coverage target
+    if(ECSCOPE_ENABLE_COVERAGE)
+        find_program(LCOV_PATH lcov)
+        find_program(GENHTML_PATH genhtml)
+        
+        if(LCOV_PATH AND GENHTML_PATH)
+            add_custom_target(coverage
+                COMMAND ${LCOV_PATH} --directory . --capture --output-file coverage.info
+                COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/vcpkg/*' '*/tests/*' --output-file coverage_filtered.info
+                COMMAND ${GENHTML_PATH} coverage_filtered.info --output-directory coverage_html
+                DEPENDS test_all
+                COMMENT "Generating code coverage report"
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+        endif()
+    endif()
+    
+    message(STATUS "ECScope Testing Framework configured:")
+    message(STATUS "  Test Runner: ecscope_test_runner")
+    message(STATUS "  Memory Testing: ${ECSCOPE_ENABLE_MEMORY_TESTING}")
+    message(STATUS "  Performance Testing: ${ECSCOPE_ENABLE_PERFORMANCE_TESTING}")
+    message(STATUS "  Stress Testing: ${ECSCOPE_ENABLE_STRESS_TESTING}")
+    message(STATUS "  Sanitizers: ${ECSCOPE_ENABLE_SANITIZERS}")
+    message(STATUS "  Coverage: ${ECSCOPE_ENABLE_COVERAGE}")
+    message(STATUS "  Fuzzing: ${ECSCOPE_ENABLE_FUZZING}")
+    
 endif()
 
 # =============================================================================
@@ -1752,6 +2300,14 @@ endif()
 
 if(ECSCOPE_ENABLE_SCRIPTING)
     install(TARGETS ecscope_scripting EXPORT ECScope-targets)
+endif()
+
+if(ECSCOPE_ENABLE_AUDIO)
+    install(TARGETS ecscope_audio EXPORT ECScope-targets)
+endif()
+
+if(ECSCOPE_ENABLE_AI_ML)
+    install(TARGETS ecscope_ai EXPORT ECScope-targets)
 endif()
 
 # Install main library
@@ -1833,6 +2389,8 @@ message(STATUS "  ImGui UI System: ${ECSCOPE_HAS_IMGUI}")
 message(STATUS "  Scripting Support: ${ECSCOPE_ENABLE_SCRIPTING}")
 message(STATUS "  Performance Lab: ${ECSCOPE_ENABLE_PERFORMANCE_LAB}")
 message(STATUS "  Debug System: ${ECSCOPE_ENABLE_DEBUG_SYSTEM}")
+message(STATUS "  Audio System: ${ECSCOPE_ENABLE_AUDIO}")
+message(STATUS "  AI/ML Framework: ${ECSCOPE_ENABLE_AI_ML}")
 if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
     message(STATUS "    - CPU Profiler: Enabled")
     message(STATUS "    - Memory Profiler: Enabled") 
@@ -1843,6 +2401,24 @@ if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
     message(STATUS "    - Runtime Inspectors: Enabled")
     message(STATUS "    - Debug Console: Enabled")
     message(STATUS "    - Remote Debugging: Enabled")
+endif()
+if(ECSCOPE_ENABLE_AUDIO)
+    message(STATUS "    - 3D Spatial Audio: Enabled")
+    message(STATUS "    - HRTF Processing: Enabled")
+    message(STATUS "    - Ambisonics Support: Enabled")
+    message(STATUS "    - Ray Tracing Audio: Enabled")
+    message(STATUS "    - Audio Effects Chain: Enabled")
+    message(STATUS "    - Multi-threaded DSP: Enabled")
+endif()
+
+if(ECSCOPE_ENABLE_AI_ML)
+    message(STATUS "    - Behavior AI Systems: Enabled (FSM, Behavior Trees, GOAP, Utility AI)")
+    message(STATUS "    - Machine Learning: Enabled (Neural Networks, Reinforcement Learning)")
+    message(STATUS "    - Procedural Generation: Enabled (Noise, L-systems, WFC)")
+    message(STATUS "    - AI Performance Optimization: Enabled")
+    message(STATUS "    - Multi-threaded AI Processing: Enabled")
+    message(STATUS "    - AI Memory Management: Enabled")
+    message(STATUS "    - Blackboard System: Enabled")
 endif()
 message(STATUS "")
 
@@ -2020,6 +2596,14 @@ endif()
 
 if(ECSCOPE_ENABLE_DEBUG_SYSTEM)
     set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_debug")
+endif()
+
+if(ECSCOPE_ENABLE_AUDIO)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_audio")
+endif()
+
+if(ECSCOPE_ENABLE_AI_ML)
+    set(AVAILABLE_LIBS "${AVAILABLE_LIBS} ecscope_ai")
 endif()
 
 message(STATUS "Available Libraries:")

@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECScope Performance Benchmark - WebAssembly Engine</title>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ff6b35;
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+        }
+        
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .benchmark-section {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .benchmark-section h2 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .benchmark-icon {
+            font-size: 1.2rem;
+        }
+        
+        .canvas-container {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .benchmark-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+        }
+        
+        .btn.secondary:hover {
+            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.4);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+        
+        .btn.danger:hover {
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+        }
+        
+        .metrics-panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .metric-item {
+            text-align: center;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            border: 1px solid #444;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4fc3f7;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 200px;
+            position: relative;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 20px,
+                #333 20px,
+                #333 21px
+            );
+            position: relative;
+        }
+        
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            background: #4fc3f7;
+            transition: height 0.3s ease;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .input-group label {
+            min-width: 120px;
+            color: #ccc;
+            font-weight: 500;
+        }
+        
+        .input-group input,
+        .input-group select {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.2);
+        }
+        
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+        
+        .status-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.running {
+            background: #4caf50;
+        }
+        
+        .status-dot.error {
+            background: #f44336;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .main-content {
+            margin-top: 60px;
+        }
+        
+        .results-section {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        
+        .results-table th {
+            background: #2a2a2a;
+            color: #4fc3f7;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .score-excellent { color: #4caf50; }
+        .score-good { color: #8bc34a; }
+        .score-average { color: #ffc107; }
+        .score-poor { color: #ff9800; }
+        .score-bad { color: #f44336; }
+        
+        @media (max-width: 1024px) {
+            .benchmark-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .input-group label {
+                min-width: auto;
+            }
+            
+            .status-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-content">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Initializing...</span>
+            </div>
+            <div id="global-fps">FPS: 0</div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            <h1>🚀 ECScope Performance Benchmark</h1>
+            
+            <div class="benchmark-grid">
+                <!-- Renderer Benchmark -->
+                <div class="benchmark-section">
+                    <h2>
+                        <span class="benchmark-icon">🎨</span>
+                        Renderer Performance
+                    </h2>
+                    <div class="canvas-container">
+                        <canvas id="render-canvas" class="benchmark-canvas" width="400" height="300"></canvas>
+                    </div>
+                    <div class="controls-grid">
+                        <button class="btn" id="start-render-bench" disabled>Start</button>
+                        <button class="btn secondary" id="stop-render-bench" disabled>Stop</button>
+                        <button class="btn danger" id="stress-render-bench" disabled>Stress Test</button>
+                    </div>
+                    <div class="input-group">
+                        <label>Triangle Count:</label>
+                        <input type="range" id="triangle-count" min="100" max="10000" value="1000" step="100">
+                        <span id="triangle-count-value">1000</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Shader Complexity:</label>
+                        <select id="shader-complexity">
+                            <option value="simple">Simple</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="complex">Complex</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Memory Benchmark -->
+                <div class="benchmark-section">
+                    <h2>
+                        <span class="benchmark-icon">💾</span>
+                        Memory Performance
+                    </h2>
+                    <div class="metrics-panel">
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <div class="metric-value" id="heap-usage">0</div>
+                                <div class="metric-label">Heap MB</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value" id="allocation-rate">0</div>
+                                <div class="metric-label">Alloc/s</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value" id="gc-pressure">0%</div>
+                                <div class="metric-label">GC Pressure</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="controls-grid">
+                        <button class="btn" id="start-memory-bench" disabled>Start</button>
+                        <button class="btn secondary" id="gc-bench" disabled>Force GC</button>
+                        <button class="btn danger" id="memory-stress-bench" disabled>Memory Stress</button>
+                    </div>
+                    <div class="input-group">
+                        <label>Allocation Size:</label>
+                        <select id="allocation-size">
+                            <option value="small">Small (1KB)</option>
+                            <option value="medium" selected>Medium (64KB)</option>
+                            <option value="large">Large (1MB)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Audio Benchmark -->
+                <div class="benchmark-section">
+                    <h2>
+                        <span class="benchmark-icon">🎵</span>
+                        Audio Performance
+                    </h2>
+                    <div class="chart-container">
+                        <div class="chart" id="audio-chart">
+                            <!-- Audio waveform visualization will be added here -->
+                        </div>
+                    </div>
+                    <div class="controls-grid">
+                        <button class="btn" id="start-audio-bench" disabled>Start</button>
+                        <button class="btn secondary" id="spatial-audio-bench" disabled>3D Audio</button>
+                        <button class="btn danger" id="audio-stress-bench" disabled>Multi-Source</button>
+                    </div>
+                    <div class="input-group">
+                        <label>Source Count:</label>
+                        <input type="range" id="audio-sources" min="1" max="32" value="4">
+                        <span id="audio-sources-value">4</span>
+                    </div>
+                </div>
+                
+                <!-- SIMD Benchmark -->
+                <div class="benchmark-section">
+                    <h2>
+                        <span class="benchmark-icon">⚡</span>
+                        SIMD Performance
+                    </h2>
+                    <div class="canvas-container">
+                        <canvas id="simd-canvas" class="benchmark-canvas" width="400" height="300"></canvas>
+                    </div>
+                    <div class="controls-grid">
+                        <button class="btn" id="start-simd-bench" disabled>Start</button>
+                        <button class="btn secondary" id="compare-simd-bench" disabled>Compare</button>
+                        <button class="btn danger" id="simd-stress-bench" disabled>Max Load</button>
+                    </div>
+                    <div class="input-group">
+                        <label>Operation Type:</label>
+                        <select id="simd-operation">
+                            <option value="add">Vector Add</option>
+                            <option value="multiply" selected>Vector Multiply</option>
+                            <option value="dot">Dot Product</option>
+                            <option value="matrix">Matrix Ops</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Results Section -->
+                <div class="results-section">
+                    <h2>
+                        <span class="benchmark-icon">📊</span>
+                        Benchmark Results
+                    </h2>
+                    <div class="controls-grid">
+                        <button class="btn" id="run-all-benchmarks" disabled>Run All Benchmarks</button>
+                        <button class="btn secondary" id="export-results">Export Results</button>
+                        <button class="btn secondary" id="compare-results">Compare</button>
+                        <button class="btn danger" id="clear-results">Clear Results</button>
+                    </div>
+                    
+                    <table class="results-table" id="results-table">
+                        <thead>
+                            <tr>
+                                <th>Benchmark</th>
+                                <th>Score</th>
+                                <th>FPS</th>
+                                <th>Frame Time (ms)</th>
+                                <th>Memory (MB)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-tbody">
+                            <!-- Results will be added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Application state
+        let app = null;
+        let benchmarkResults = [];
+        let activeBenchmarks = new Set();
+        let performanceData = {
+            fps: [],
+            frameTime: [],
+            memory: [],
+            drawCalls: []
+        };
+        
+        // Performance tracking
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fpsCounter = 0;
+        
+        // DOM elements
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const globalFps = document.getElementById('global-fps');
+        
+        // Utility functions
+        function updateStatus(status, text) {
+            statusDot.className = `status-dot ${status}`;
+            statusText.textContent = text;
+        }
+        
+        function log(message) {
+            console.log(`[ECScope Benchmark] ${message}`);
+        }
+        
+        function enableControls(enable = true) {
+            const buttons = document.querySelectorAll('.btn[disabled]');
+            buttons.forEach(btn => {
+                if (enable) {
+                    btn.removeAttribute('disabled');
+                } else {
+                    btn.setAttribute('disabled', 'true');
+                }
+            });
+        }
+        
+        function getScoreClass(score) {
+            if (score >= 90) return 'score-excellent';
+            if (score >= 75) return 'score-good';
+            if (score >= 60) return 'score-average';
+            if (score >= 40) return 'score-poor';
+            return 'score-bad';
+        }
+        
+        function calculateScore(metrics) {
+            // Simple scoring algorithm based on FPS and frame consistency
+            const baseFPS = 60;
+            const fpsScore = Math.min(100, (metrics.averageFPS / baseFPS) * 100);
+            const consistencyScore = Math.max(0, 100 - (metrics.frameTimeVariance * 10));
+            return Math.round((fpsScore + consistencyScore) / 2);
+        }
+        
+        // Initialize ECScope application
+        async function initializeECScope() {
+            try {
+                updateStatus('loading', 'Loading ECScope...');
+                log('Starting ECScope initialization');
+                
+                // Wait for ECScope to be ready
+                if (!window.ECScope || !window.ECScope.ready) {
+                    await new Promise((resolve, reject) => {
+                        window.addEventListener('ecscopeready', resolve);
+                        window.addEventListener('ecscopeerror', reject);
+                        setTimeout(() => reject(new Error('Timeout')), 30000);
+                    });
+                }
+                
+                // Create application with performance optimizations
+                const config = {
+                    canvas: document.getElementById('render-canvas'),
+                    title: 'ECScope Performance Benchmark',
+                    width: 400,
+                    height: 300,
+                    webgl: {
+                        alpha: false,
+                        depth: true,
+                        antialias: false, // Disable for performance
+                        powerPreferenceHighPerformance: true
+                    },
+                    audio: {
+                        enableSpatialAudio: true,
+                        enableEffects: true,
+                        bufferSize: 256 // Smaller buffer for lower latency
+                    },
+                    enableInput: true,
+                    enablePerformanceMonitoring: true
+                };
+                
+                app = new ECScope.Application(config);
+                
+                // Set up event handlers
+                app.on('error', (error) => {
+                    log(`Error: ${error.message}`);
+                    updateStatus('error', 'Error occurred');
+                });
+                
+                app.on('performance', updatePerformanceMetrics);
+                
+                app.on('ready', () => {
+                    log('ECScope application ready for benchmarking!');
+                    updateStatus('running', 'Ready for benchmarks');
+                    enableControls(true);
+                    startPerformanceTracking();
+                });
+                
+                // Initialize the application
+                updateStatus('loading', 'Initializing application...');
+                await app.initialize();
+                
+            } catch (error) {
+                log(`Initialization failed: ${error.message}`);
+                updateStatus('error', 'Initialization failed');
+            }
+        }
+        
+        function updatePerformanceMetrics(metrics) {
+            // Update global FPS display
+            globalFps.textContent = `FPS: ${metrics.fps || 0}`;
+            
+            // Update memory display
+            document.getElementById('heap-usage').textContent = 
+                Math.round((metrics.memory?.heapUsed || 0) / (1024 * 1024));
+            
+            // Store performance data
+            performanceData.fps.push(metrics.fps || 0);
+            performanceData.frameTime.push(metrics.frameTimeMs || 0);
+            performanceData.memory.push(metrics.memory?.heapUsed || 0);
+            performanceData.drawCalls.push(metrics.drawCalls || 0);
+            
+            // Keep only last 100 samples
+            Object.keys(performanceData).forEach(key => {
+                if (performanceData[key].length > 100) {
+                    performanceData[key].shift();
+                }
+            });
+        }
+        
+        function startPerformanceTracking() {
+            function trackFrame() {
+                const now = performance.now();
+                frameCount++;
+                
+                if (now - lastFrameTime >= 1000) {
+                    fpsCounter = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                    frameCount = 0;
+                    lastFrameTime = now;
+                }
+                
+                requestAnimationFrame(trackFrame);
+            }
+            trackFrame();
+        }
+        
+        // Renderer Benchmark
+        class RendererBenchmark {
+            constructor() {
+                this.running = false;
+                this.triangleCount = 1000;
+                this.startTime = 0;
+                this.frameCount = 0;
+            }
+            
+            start() {
+                if (!app || this.running) return;
+                
+                this.running = true;
+                this.startTime = performance.now();
+                this.frameCount = 0;
+                
+                log(`Starting renderer benchmark with ${this.triangleCount} triangles`);
+                this.render();
+            }
+            
+            stop() {
+                if (!this.running) return;
+                
+                this.running = false;
+                const duration = (performance.now() - this.startTime) / 1000;
+                const averageFPS = this.frameCount / duration;
+                
+                const result = {
+                    name: 'Renderer',
+                    averageFPS: averageFPS,
+                    frameTimeVariance: this.calculateVariance(),
+                    memoryUsed: this.getCurrentMemory(),
+                    triangleCount: this.triangleCount
+                };
+                
+                result.score = calculateScore(result);
+                this.addResult(result);
+                
+                log(`Renderer benchmark completed: ${averageFPS.toFixed(1)} FPS`);
+            }
+            
+            render() {
+                if (!this.running || !app) return;
+                
+                try {
+                    const renderer = app.getRenderer();
+                    renderer.beginFrame();
+                    renderer.clear(0.1, 0.1, 0.1, 1.0);
+                    
+                    // Simulate rendering triangles
+                    // In a real implementation, this would render actual geometry
+                    for (let i = 0; i < this.triangleCount / 100; i++) {
+                        // Simulate draw calls
+                        renderer.drawArrays(0x0004, 0, 3); // GL_TRIANGLES
+                    }
+                    
+                    renderer.endFrame();
+                    this.frameCount++;
+                    
+                    if (this.running) {
+                        requestAnimationFrame(() => this.render());
+                    }
+                } catch (error) {
+                    log(`Render error: ${error.message}`);
+                    this.stop();
+                }
+            }
+            
+            calculateVariance() {
+                if (performanceData.frameTime.length < 10) return 0;
+                
+                const times = performanceData.frameTime.slice(-60); // Last 60 frames
+                const avg = times.reduce((a, b) => a + b) / times.length;
+                const variance = times.reduce((acc, time) => acc + Math.pow(time - avg, 2), 0) / times.length;
+                return Math.sqrt(variance);
+            }
+            
+            getCurrentMemory() {
+                return app ? app.getPerformanceMetrics().memory?.heapUsed || 0 : 0;
+            }
+            
+            addResult(result) {
+                benchmarkResults.push(result);
+                this.displayResult(result);
+            }
+            
+            displayResult(result) {
+                const tbody = document.getElementById('results-tbody');
+                const row = document.createElement('tr');
+                
+                const scoreClass = getScoreClass(result.score);
+                
+                row.innerHTML = `
+                    <td>${result.name}</td>
+                    <td class="${scoreClass}">${result.score}</td>
+                    <td>${result.averageFPS.toFixed(1)}</td>
+                    <td>${(1000 / result.averageFPS).toFixed(2)}</td>
+                    <td>${Math.round(result.memoryUsed / (1024 * 1024))}</td>
+                    <td>✅ Completed</td>
+                `;
+                
+                tbody.appendChild(row);
+            }
+        }
+        
+        // Memory Benchmark
+        class MemoryBenchmark {
+            constructor() {
+                this.running = false;
+                this.allocations = [];
+            }
+            
+            start() {
+                if (this.running) return;
+                
+                this.running = true;
+                log('Starting memory benchmark');
+                
+                // Test different allocation patterns
+                this.testAllocationPattern();
+            }
+            
+            testAllocationPattern() {
+                const allocationSize = this.getAllocationSize();
+                const startTime = performance.now();
+                let allocCount = 0;
+                
+                const allocateLoop = () => {
+                    if (!this.running) return;
+                    
+                    // Allocate memory
+                    const buffer = new ArrayBuffer(allocationSize);
+                    const view = new Uint8Array(buffer);
+                    
+                    // Fill with data to ensure allocation
+                    for (let i = 0; i < view.length; i += 1024) {
+                        view[i] = Math.random() * 255;
+                    }
+                    
+                    this.allocations.push(buffer);
+                    allocCount++;
+                    
+                    // Update allocation rate
+                    const elapsed = (performance.now() - startTime) / 1000;
+                    const rate = allocCount / elapsed;
+                    document.getElementById('allocation-rate').textContent = Math.round(rate);
+                    
+                    // Clean up old allocations
+                    if (this.allocations.length > 100) {
+                        this.allocations.shift();
+                    }
+                    
+                    if (this.running) {
+                        setTimeout(allocateLoop, 10);
+                    }
+                };
+                
+                allocateLoop();
+            }
+            
+            getAllocationSize() {
+                const size = document.getElementById('allocation-size').value;
+                switch (size) {
+                    case 'small': return 1024;
+                    case 'medium': return 64 * 1024;
+                    case 'large': return 1024 * 1024;
+                    default: return 64 * 1024;
+                }
+            }
+            
+            stop() {
+                this.running = false;
+                this.allocations = [];
+                log('Memory benchmark stopped');
+            }
+            
+            forceGC() {
+                if (window.gc) {
+                    window.gc();
+                    log('Garbage collection forced');
+                } else {
+                    log('GC not available (requires --expose-gc flag)');
+                }
+            }
+        }
+        
+        // Audio Benchmark
+        class AudioBenchmark {
+            constructor() {
+                this.running = false;
+                this.sources = [];
+            }
+            
+            start() {
+                if (!app || this.running) return;
+                
+                this.running = true;
+                log('Starting audio benchmark');
+                
+                const sourceCount = parseInt(document.getElementById('audio-sources').value);
+                this.createAudioSources(sourceCount);
+            }
+            
+            createAudioSources(count) {
+                try {
+                    const audio = app.getAudio();
+                    
+                for (let i = 0; i < count; i++) {
+                        const frequency = 220 + (i * 50); // Different frequencies
+                        const bufferId = audio.generateTone(frequency, 2.0, 0.1, 'sine');
+                        const sourceId = audio.createAudioSource(bufferId);
+                        
+                        // Set 3D position
+                        const angle = (i / count) * Math.PI * 2;
+                        const x = Math.cos(angle) * 5;
+                        const z = Math.sin(angle) * 5;
+                        audio.setSourcePosition(sourceId, x, 0, z);
+                        audio.setSourceLooping(sourceId, true);
+                        audio.playSource(sourceId);
+                        
+                        this.sources.push({ sourceId, bufferId });
+                    }
+                    
+                    log(`Created ${count} audio sources`);
+                } catch (error) {
+                    log(`Audio benchmark error: ${error.message}`);
+                }
+            }
+            
+            stop() {
+                if (!app || !this.running) return;
+                
+                this.running = false;
+                const audio = app.getAudio();
+                
+                // Clean up audio sources
+                this.sources.forEach(({ sourceId, bufferId }) => {
+                    audio.stopSource(sourceId);
+                    audio.deleteAudioSource(sourceId);
+                    audio.deleteAudioBuffer(bufferId);
+                });
+                
+                this.sources = [];
+                log('Audio benchmark stopped');
+            }
+        }
+        
+        // SIMD Benchmark
+        class SIMDBenchmark {
+            constructor() {
+                this.running = false;
+                this.operationsPerSecond = 0;
+            }
+            
+            start() {
+                if (this.running) return;
+                
+                this.running = true;
+                log('Starting SIMD benchmark');
+                
+                const operation = document.getElementById('simd-operation').value;
+                this.runSIMDTest(operation);
+            }
+            
+            runSIMDTest(operation) {
+                const startTime = performance.now();
+                let operations = 0;
+                
+                const testLoop = () => {
+                    if (!this.running) return;
+                    
+                    // Perform SIMD operations
+                    const data1 = new Float32Array(1024);
+                    const data2 = new Float32Array(1024);
+                    const result = new Float32Array(1024);
+                    
+                    // Fill with test data
+                    for (let i = 0; i < data1.length; i++) {
+                        data1[i] = Math.random();
+                        data2[i] = Math.random();
+                    }
+                    
+                    switch (operation) {
+                        case 'add':
+                            for (let i = 0; i < data1.length; i++) {
+                                result[i] = data1[i] + data2[i];
+                            }
+                            break;
+                        case 'multiply':
+                            for (let i = 0; i < data1.length; i++) {
+                                result[i] = data1[i] * data2[i];
+                            }
+                            break;
+                        case 'dot':
+                            let dot = 0;
+                            for (let i = 0; i < data1.length; i++) {
+                                dot += data1[i] * data2[i];
+                            }
+                            break;
+                        case 'matrix':
+                            // 4x4 matrix multiplication simulation
+                            for (let i = 0; i < 256; i++) {
+                                const row = Math.floor(i / 16);
+                                const col = i % 16;
+                                result[i] = data1[row * 4] * data2[col] + 
+                                           data1[row * 4 + 1] * data2[col + 4] +
+                                           data1[row * 4 + 2] * data2[col + 8] +
+                                           data1[row * 4 + 3] * data2[col + 12];
+                            }
+                            break;
+                    }
+                    
+                    operations++;
+                    
+                    // Update operations per second
+                    const elapsed = (performance.now() - startTime) / 1000;
+                    this.operationsPerSecond = operations / elapsed;
+                    
+                    if (this.running) {
+                        requestAnimationFrame(testLoop);
+                    }
+                };
+                
+                testLoop();
+            }
+            
+            stop() {
+                this.running = false;
+                log(`SIMD benchmark completed: ${this.operationsPerSecond.toFixed(0)} ops/sec`);
+            }
+        }
+        
+        // Initialize benchmarks
+        const rendererBench = new RendererBenchmark();
+        const memoryBench = new MemoryBenchmark();
+        const audioBench = new AudioBenchmark();
+        const simdBench = new SIMDBenchmark();
+        
+        // Event listeners
+        document.getElementById('triangle-count').addEventListener('input', (e) => {
+            rendererBench.triangleCount = parseInt(e.target.value);
+            document.getElementById('triangle-count-value').textContent = e.target.value;
+        });
+        
+        document.getElementById('audio-sources').addEventListener('input', (e) => {
+            document.getElementById('audio-sources-value').textContent = e.target.value;
+        });
+        
+        // Renderer controls
+        document.getElementById('start-render-bench').addEventListener('click', () => rendererBench.start());
+        document.getElementById('stop-render-bench').addEventListener('click', () => rendererBench.stop());
+        document.getElementById('stress-render-bench').addEventListener('click', () => {
+            rendererBench.triangleCount = 10000;
+            document.getElementById('triangle-count').value = 10000;
+            document.getElementById('triangle-count-value').textContent = '10000';
+            rendererBench.start();
+        });
+        
+        // Memory controls
+        document.getElementById('start-memory-bench').addEventListener('click', () => memoryBench.start());
+        document.getElementById('gc-bench').addEventListener('click', () => memoryBench.forceGC());
+        document.getElementById('memory-stress-bench').addEventListener('click', () => memoryBench.start());
+        
+        // Audio controls
+        document.getElementById('start-audio-bench').addEventListener('click', () => audioBench.start());
+        document.getElementById('spatial-audio-bench').addEventListener('click', () => audioBench.start());
+        document.getElementById('audio-stress-bench').addEventListener('click', () => {
+            document.getElementById('audio-sources').value = 32;
+            document.getElementById('audio-sources-value').textContent = '32';
+            audioBench.start();
+        });
+        
+        // SIMD controls
+        document.getElementById('start-simd-bench').addEventListener('click', () => simdBench.start());
+        document.getElementById('compare-simd-bench').addEventListener('click', () => simdBench.start());
+        document.getElementById('simd-stress-bench').addEventListener('click', () => simdBench.start());
+        
+        // Global controls
+        document.getElementById('run-all-benchmarks').addEventListener('click', async () => {
+            log('Running all benchmarks...');
+            
+            // Run benchmarks sequentially
+            rendererBench.start();
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            rendererBench.stop();
+            
+            memoryBench.start();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            memoryBench.stop();
+            
+            audioBench.start();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            audioBench.stop();
+            
+            simdBench.start();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            simdBench.stop();
+            
+            log('All benchmarks completed');
+        });
+        
+        document.getElementById('export-results').addEventListener('click', () => {
+            const data = JSON.stringify(benchmarkResults, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ecscope-benchmark-results.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        
+        document.getElementById('clear-results').addEventListener('click', () => {
+            benchmarkResults = [];
+            document.getElementById('results-tbody').innerHTML = '';
+            log('Results cleared');
+        });
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            log('Initializing ECScope benchmark suite...');
+            initializeECScope();
+        });
+        
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            log(`Global error: ${event.error?.message || event.message}`);
+            updateStatus('error', 'Error occurred');
+        });
+    </script>
+    
+    <!-- Load ECScope WebAssembly module -->
+    <script src="../dist/ecscope.js"></script>
+</body>
+</html>

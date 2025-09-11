@@ -1,0 +1,529 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CMAKE_BUILD_TYPE: Release
+  VCPKG_TARGET_TRIPLET: x64-linux
+
+jobs:
+  # Static Analysis
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install static analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy iwyu
+    
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --std=c++20 --platform=unix64 \
+          --suppress=missingIncludeSystem \
+          --xml --xml-version=2 src/ include/ 2> cppcheck_results.xml
+    
+    - name: Run clang-tidy
+      run: |
+        find src/ include/ -name "*.cpp" -o -name "*.hpp" | \
+        xargs clang-tidy --config-file=.clang-tidy \
+          --export-fixes=clang_tidy_fixes.yml
+    
+    - name: Upload static analysis results
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-analysis-results
+        path: |
+          cppcheck_results.xml
+          clang_tidy_fixes.yml
+
+  # Build Matrix
+  build-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler: [gcc, clang, msvc]
+        build_type: [Debug, Release]
+        exclude:
+          - os: windows-latest
+            compiler: gcc
+          - os: windows-latest
+            compiler: clang
+          - os: ubuntu-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: gcc
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            cxx: g++-12
+            cc: gcc-12
+          - os: ubuntu-latest
+            compiler: clang
+            cxx: clang++-15
+            cc: clang-15
+          - os: macos-latest
+            compiler: clang
+            cxx: clang++
+            cc: clang
+          - os: windows-latest
+            compiler: msvc
+            cxx: cl
+            cc: cl
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a7b6122f6b6504d16d96117336a0562693579933'
+    
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          libgl1-mesa-dev \
+          libglu1-mesa-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libxi-dev \
+          libx11-dev \
+          libasound2-dev \
+          valgrind
+    
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake ninja
+    
+    - name: Setup MSVC (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_ENABLE_TESTING_FRAMEWORK=ON \
+          -DECSCOPE_ENABLE_COVERAGE=${{ matrix.build_type == 'Debug' && 'ON' || 'OFF' }} \
+          -DECSCOPE_ENABLE_SANITIZERS=${{ matrix.build_type == 'Debug' && 'ON' || 'OFF' }} \
+          -G Ninja
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Run Unit Tests
+      run: |
+        cd build
+        ctest --output-on-failure --parallel --timeout 300 \
+          --label-regex "unit" --verbose
+    
+    - name: Run Integration Tests
+      if: matrix.build_type == 'Debug'
+      run: |
+        cd build
+        ctest --output-on-failure --parallel --timeout 600 \
+          --label-regex "integration" --verbose
+    
+    - name: Generate Coverage Report
+      if: matrix.build_type == 'Debug' && matrix.compiler == 'gcc'
+      run: |
+        cd build
+        gcov -r $(find . -name "*.gcno")
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '*/vcpkg/*' '*/tests/*' --output-file coverage_filtered.info
+        genhtml coverage_filtered.info --output-directory coverage_html
+    
+    - name: Upload Coverage to Codecov
+      if: matrix.build_type == 'Debug' && matrix.compiler == 'gcc'
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/coverage_filtered.info
+        flags: unittests
+        name: codecov-umbrella
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: matrix.build_type == 'Release'
+      with:
+        name: ecscope-${{ matrix.os }}-${{ matrix.compiler }}
+        path: |
+          build/bin/
+          build/lib/
+
+  # Memory Testing with Valgrind
+  memory-testing:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind build-essential cmake ninja-build \
+          libgl1-mesa-dev libglu1-mesa-dev
+    
+    - name: Configure CMake for memory testing
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_TESTING_FRAMEWORK=ON \
+          -DECSCOPE_ENABLE_MEMORY_TESTING=ON \
+          -G Ninja
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Run Memory Tests with Valgrind
+      run: |
+        cd build
+        valgrind --tool=memcheck \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --verbose \
+          --xml=yes \
+          --xml-file=valgrind_results.xml \
+          ./bin/ecscope_memory_tests
+    
+    - name: Run Helgrind (Thread Safety)
+      run: |
+        cd build
+        valgrind --tool=helgrind \
+          --verbose \
+          --xml=yes \
+          --xml-file=helgrind_results.xml \
+          ./bin/ecscope_threading_tests
+    
+    - name: Upload memory test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-test-results
+        path: |
+          build/valgrind_results.xml
+          build/helgrind_results.xml
+
+  # Performance Testing
+  performance-testing:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0  # Need full history for regression detection
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libgl1-mesa-dev libglu1-mesa-dev
+    
+    - name: Configure CMake for performance testing
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_ENABLE_TESTING_FRAMEWORK=ON \
+          -DECSCOPE_ENABLE_PERFORMANCE_TESTING=ON \
+          -G Ninja
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Download previous benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_baselines/
+      continue-on-error: true
+    
+    - name: Run Performance Tests
+      run: |
+        cd build
+        ./bin/ecscope_performance_tests \
+          --output-format=json \
+          --output-file=performance_results.json \
+          --baseline-file=../benchmark_baselines/baseline.json
+    
+    - name: Run Benchmarks
+      run: |
+        cd build
+        ./bin/ecscope_benchmarks \
+          --benchmark_format=json \
+          --benchmark_out=benchmark_results.json
+    
+    - name: Analyze Performance Regression
+      run: |
+        cd build
+        python3 ../scripts/analyze_performance.py \
+          --current=performance_results.json \
+          --baseline=../benchmark_baselines/baseline.json \
+          --threshold=1.1 \
+          --output=regression_report.md
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          build/performance_results.json
+          build/benchmark_results.json
+          build/regression_report.md
+
+  # Stress Testing
+  stress-testing:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    timeout-minutes: 60
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libgl1-mesa-dev libglu1-mesa-dev htop
+    
+    - name: Configure CMake for stress testing
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_ENABLE_TESTING_FRAMEWORK=ON \
+          -DECSCOPE_ENABLE_STRESS_TESTING=ON \
+          -G Ninja
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Run Stress Tests
+      run: |
+        cd build
+        timeout 45m ./bin/ecscope_stress_tests \
+          --verbose \
+          --output-format=json \
+          --output-file=stress_test_results.json
+    
+    - name: Upload stress test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: stress-test-results
+        path: build/stress_test_results.json
+
+  # Security Testing
+  security-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: cpp
+        queries: security-and-quality
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build
+    
+    - name: Build for CodeQL
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -G Ninja
+        cmake --build build
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  # Documentation Testing
+  documentation-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install documentation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y doxygen graphviz
+        pip install sphinx breathe
+    
+    - name: Generate documentation
+      run: |
+        doxygen docs/Doxyfile
+        cd docs && make html
+    
+    - name: Check documentation coverage
+      run: |
+        python3 scripts/check_doc_coverage.py src/ include/ --threshold=80
+    
+    - name: Upload documentation
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: |
+          docs/_build/html/
+          docs/doxygen/html/
+
+  # Integration with External Services
+  external-integration:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    
+    - name: Deploy to staging (on main branch)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        echo "Deploying to staging environment..."
+        # Add deployment logic here
+
+  # Nightly Comprehensive Testing
+  nightly-testing:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    timeout-minutes: 180
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          valgrind libgl1-mesa-dev libglu1-mesa-dev
+    
+    - name: Configure CMake for comprehensive testing
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_BENCHMARKS=ON \
+          -DECSCOPE_ENABLE_TESTING_FRAMEWORK=ON \
+          -DECSCOPE_ENABLE_ALL_TESTS=ON \
+          -DECSCOPE_ENABLE_FUZZING=ON \
+          -G Ninja
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Run Full Test Suite
+      run: |
+        cd build
+        ./bin/ecscope_test_runner \
+          --verbose \
+          --output-format=html \
+          --output-file=nightly_report.html \
+          --enable-memory-tracking \
+          --enable-performance-tracking \
+          --timeout=7200
+    
+    - name: Run Fuzz Testing
+      run: |
+        cd build
+        timeout 120m ./bin/ecscope_fuzz_tests
+    
+    - name: Generate Comprehensive Report
+      run: |
+        cd build
+        python3 ../scripts/generate_nightly_report.py \
+          --test-results=nightly_report.html \
+          --coverage=coverage_filtered.info \
+          --performance=performance_results.json \
+          --memory=valgrind_results.xml \
+          --output=comprehensive_report.html
+    
+    - name: Upload nightly results
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-test-results
+        path: |
+          build/nightly_report.html
+          build/comprehensive_report.html
+    
+    - name: Notify on failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#ci-notifications'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Release Testing
+  release-testing:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-matrix, memory-testing, performance-testing, stress-testing]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Run release validation
+      run: |
+        python3 scripts/validate_release.py \
+          --artifacts=. \
+          --version=${{ github.ref_name }}
+    
+    - name: Create release package
+      run: |
+        python3 scripts/create_release_package.py \
+          --version=${{ github.ref_name }} \
+          --artifacts=.
+    
+    - name: Upload to GitHub Releases
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release_package/*.zip
+          release_package/*.tar.gz
