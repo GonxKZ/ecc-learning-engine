@@ -1,0 +1,88 @@
+cmake_minimum_required(VERSION 3.22)
+project(ECScope 
+    VERSION 1.0.0
+    DESCRIPTION "ECScope: Ultra-Minimal Working Test"
+    LANGUAGES CXX)
+
+# C++20 configuration
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Build type configuration
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+endif()
+
+# Compiler flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic
+        -Wno-unused-parameter
+        -fno-omit-frame-pointer
+    )
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(-O0 -g3)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3 -DNDEBUG -march=native -mtune=native)
+    endif()
+endif()
+
+# Include directories
+include_directories(include)
+include_directories(include/ecscope)
+
+# Find required libraries
+find_package(Threads REQUIRED)
+
+# Ultra-minimal library with only components that definitely compile
+add_library(ecscope_ultra_minimal
+    # Only the most basic components that should compile
+    src/core/id.cpp
+    src/core/log.cpp  
+    src/core/time.cpp
+    
+    # Basic memory management that should work
+    src/memory/pool_allocator.cpp
+    
+    # Simple networking buffer
+    src/networking/network_buffer.cpp
+)
+
+# Link libraries
+target_link_libraries(ecscope_ultra_minimal PUBLIC Threads::Threads)
+
+# Create ultra-minimal test that doesn't depend on complex headers
+add_executable(ecscope_ultra_minimal_test
+    examples/ultra_minimal_test.cpp
+)
+target_link_libraries(ecscope_ultra_minimal_test ecscope_ultra_minimal)
+
+# Ultra-minimal performance test
+add_executable(ecscope_ultra_minimal_performance  
+    examples/ultra_minimal_performance.cpp
+)
+target_link_libraries(ecscope_ultra_minimal_performance ecscope_ultra_minimal)
+
+# Print configuration
+message(STATUS "═══════════════════════════════════════════════════════")
+message(STATUS "  ECScope Ultra-Minimal Working Test Build")  
+message(STATUS "═══════════════════════════════════════════════════════")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "")
+message(STATUS "Ultra-Minimal Components:")
+message(STATUS "  Core ID System: ✓")
+message(STATUS "  Core Logging: ✓") 
+message(STATUS "  Core Timing: ✓")
+message(STATUS "  Memory Pool: ✓")
+message(STATUS "  Network Buffer: ✓")
+message(STATUS "")
+message(STATUS "Build Commands:")
+message(STATUS "  cmake --build . --parallel")
+message(STATUS "  ./ecscope_ultra_minimal_test")
+message(STATUS "  ./ecscope_ultra_minimal_performance")
+message(STATUS "═══════════════════════════════════════════════════════")

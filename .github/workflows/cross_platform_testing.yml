@@ -1,0 +1,527 @@
+name: Cross-Platform GUI Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run comprehensive tests nightly
+    - cron: '0 3 * * *'
+
+env:
+  CMAKE_BUILD_TYPE: Release
+  ECSCOPE_BUILD_TESTS: ON
+  ECSCOPE_BUILD_CROSS_PLATFORM_TESTS: ON
+  ECSCOPE_BUILD_GUI: ON
+
+jobs:
+  # Platform Detection and Capability Testing
+  platform-detection:
+    name: Platform Detection
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            shell: bash
+          - os: windows-latest
+            platform: windows
+            shell: pwsh
+          - os: macos-latest
+            platform: macos
+            shell: bash
+    
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: System information
+      run: |
+        echo "Operating System: ${{ matrix.platform }}"
+        echo "Runner OS: ${{ runner.os }}"
+        echo "Architecture: ${{ runner.arch }}"
+        
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          echo "Linux Distribution:"
+          cat /etc/os-release
+          echo "Desktop Environment:"
+          echo "DISPLAY=$DISPLAY"
+          echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+          echo "XDG_SESSION_TYPE=$XDG_SESSION_TYPE"
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          echo "macOS Version:"
+          sw_vers
+        elif [ "${{ matrix.platform }}" = "windows" ]; then
+          echo "Windows Version:"
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, TotalPhysicalMemory
+        fi
+    
+    - name: Install platform dependencies
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build pkg-config \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libx11-dev libxext-dev libxfixes-dev \
+            libasound2-dev \
+            xvfb mesa-utils
+          
+          # Check OpenGL support
+          echo "OpenGL Information:"
+          glxinfo | grep "OpenGL version" || true
+          
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          brew install cmake ninja pkg-config
+          
+          # Check Metal support
+          echo "Metal Support:"
+          system_profiler SPDisplaysDataType | grep "Metal" || true
+          
+        elif [ "${{ matrix.platform }}" = "windows" ]; then
+          # Install vcpkg packages
+          vcpkg install glfw3:x64-windows opengl:x64-windows
+        fi
+    
+    - name: Test GUI capabilities
+      run: |
+        python3 scripts/cross_platform/test_gui_capabilities.py \
+          --platform ${{ matrix.platform }} \
+          --output capabilities_${{ matrix.platform }}.json
+    
+    - name: Upload capability report
+      uses: actions/upload-artifact@v4
+      with:
+        name: capabilities-${{ matrix.platform }}
+        path: capabilities_${{ matrix.platform }}.json
+
+  # Cross-Platform Build Matrix
+  cross-platform-build:
+    name: Build (${{ matrix.config.name }})
+    runs-on: ${{ matrix.config.os }}
+    needs: platform-detection
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          # Linux builds
+          - {
+              name: "Linux GCC Debug",
+              os: ubuntu-latest,
+              platform: linux,
+              compiler: gcc,
+              build_type: Debug,
+              cmake_args: "-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DECSCOPE_ENABLE_SANITIZERS=ON",
+              shell: bash
+            }
+          - {
+              name: "Linux GCC Release",
+              os: ubuntu-latest,
+              platform: linux,
+              compiler: gcc,
+              build_type: Release,
+              cmake_args: "-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON",
+              shell: bash
+            }
+          - {
+              name: "Linux Clang Debug",
+              os: ubuntu-latest,
+              platform: linux,
+              compiler: clang,
+              build_type: Debug,
+              cmake_args: "-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DECSCOPE_ENABLE_SANITIZERS=ON",
+              shell: bash
+            }
+          - {
+              name: "Linux Clang Release",
+              os: ubuntu-latest,
+              platform: linux,
+              compiler: clang,
+              build_type: Release,
+              cmake_args: "-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON",
+              shell: bash
+            }
+          
+          # Windows builds
+          - {
+              name: "Windows MSVC Debug",
+              os: windows-latest,
+              platform: windows,
+              compiler: msvc,
+              build_type: Debug,
+              cmake_args: "-G 'Visual Studio 17 2022' -A x64 -DECSCOPE_ENABLE_SANITIZERS=ON",
+              shell: pwsh
+            }
+          - {
+              name: "Windows MSVC Release",
+              os: windows-latest,
+              platform: windows,
+              compiler: msvc,
+              build_type: Release,
+              cmake_args: "-G 'Visual Studio 17 2022' -A x64 -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON",
+              shell: pwsh
+            }
+          
+          # macOS builds
+          - {
+              name: "macOS Clang Debug",
+              os: macos-latest,
+              platform: macos,
+              compiler: clang,
+              build_type: Debug,
+              cmake_args: "-G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DECSCOPE_ENABLE_SANITIZERS=ON",
+              shell: bash
+            }
+          - {
+              name: "macOS Clang Release",
+              os: macos-latest,
+              platform: macos,
+              compiler: clang,
+              build_type: Release,
+              cmake_args: "-G Xcode -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DECSCOPE_ENABLE_ADVANCED_OPTIMIZATIONS=ON",
+              shell: bash
+            }
+    
+    defaults:
+      run:
+        shell: ${{ matrix.config.shell }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        if [ "${{ matrix.config.platform }}" = "linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build pkg-config \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libx11-dev libxext-dev libxfixes-dev \
+            libasound2-dev \
+            xvfb mesa-utils \
+            valgrind
+          
+          # Install compiler-specific packages
+          if [ "${{ matrix.config.compiler }}" = "clang" ]; then
+            sudo apt-get install -y clang-15 libc++-15-dev libc++abi-15-dev
+          fi
+          
+        elif [ "${{ matrix.config.platform }}" = "macos" ]; then
+          brew install cmake ninja pkg-config
+          
+        elif [ "${{ matrix.config.platform }}" = "windows" ]; then
+          # Windows-specific dependencies will be handled by vcpkg
+          echo "Windows dependencies will be managed by vcpkg"
+        fi
+    
+    - name: Setup vcpkg (Windows)
+      if: matrix.config.platform == 'windows'
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a7b6122f6b6504d16d96117336a0562693579933'
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+          ${{ matrix.config.cmake_args }} \
+          -DECSCOPE_BUILD_TESTS=ON \
+          -DECSCOPE_BUILD_CROSS_PLATFORM_TESTS=ON \
+          -DECSCOPE_BUILD_GUI=ON \
+          -DECSCOPE_BUILD_EXAMPLES=ON
+    
+    - name: Build
+      run: |
+        cmake --build build --config ${{ matrix.config.build_type }} --parallel
+    
+    - name: Run cross-platform tests
+      run: |
+        cd build
+        
+        if [ "${{ matrix.config.platform }}" = "linux" ]; then
+          # Use Xvfb for headless GUI testing on Linux
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 3
+        fi
+        
+        # Run CTest with cross-platform focus
+        ctest --build-config ${{ matrix.config.build_type }} \
+              --parallel \
+              --output-on-failure \
+              --label-regex "cross-platform|gui|compatibility" \
+              --timeout 300
+    
+    - name: Run GUI compatibility tests
+      run: |
+        cd build
+        
+        if [ "${{ matrix.config.platform }}" = "linux" ]; then
+          export DISPLAY=:99
+        fi
+        
+        # Run individual compatibility tests
+        ./bin/ecscope_gui_compatibility_test --reporter=junit --out=gui_compatibility_results.xml || true
+        ./bin/ecscope_opengl_test --reporter=junit --out=opengl_compatibility_results.xml || true
+        ./bin/ecscope_glfw_test --reporter=junit --out=glfw_compatibility_results.xml || true
+    
+    - name: Memory leak testing (Linux Debug only)
+      if: matrix.config.platform == 'linux' && matrix.config.build_type == 'Debug'
+      run: |
+        cd build
+        export DISPLAY=:99
+        
+        # Run memory leak tests with Valgrind
+        valgrind --tool=memcheck \
+                 --leak-check=full \
+                 --show-leak-kinds=all \
+                 --track-origins=yes \
+                 --xml=yes \
+                 --xml-file=valgrind_gui_results.xml \
+                 ./bin/ecscope_gui_compatibility_test || true
+    
+    - name: Generate test report
+      if: always()
+      run: |
+        python3 scripts/cross_platform/generate_test_report.py \
+          --build-dir build \
+          --platform ${{ matrix.config.platform }} \
+          --compiler ${{ matrix.config.compiler }} \
+          --build-type ${{ matrix.config.build_type }} \
+          --output test_report_${{ matrix.config.platform }}_${{ matrix.config.compiler }}_${{ matrix.config.build_type }}.json
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.config.platform }}-${{ matrix.config.compiler }}-${{ matrix.config.build_type }}
+        path: |
+          build/*_results.xml
+          test_report_*.json
+          build/Testing/Temporary/LastTest.log
+    
+    - name: Upload build artifacts
+      if: matrix.config.build_type == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries-${{ matrix.config.platform }}-${{ matrix.config.compiler }}
+        path: |
+          build/bin/
+          build/lib/
+
+  # DPI Scaling Tests
+  dpi-scaling-tests:
+    name: DPI Scaling Tests
+    runs-on: ${{ matrix.os }}
+    needs: cross-platform-build
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: binaries-${{ matrix.platform }}-*
+        path: artifacts/
+    
+    - name: Setup test environment
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-utils
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+        fi
+    
+    - name: Run DPI scaling tests
+      run: |
+        python3 scripts/cross_platform/test_dpi_scaling.py \
+          --platform ${{ matrix.platform }} \
+          --artifacts-dir artifacts/ \
+          --output dpi_scaling_results_${{ matrix.platform }}.json
+    
+    - name: Upload DPI test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dpi-scaling-results-${{ matrix.platform }}
+        path: dpi_scaling_results_${{ matrix.platform }}.json
+
+  # Performance Comparison
+  performance-comparison:
+    name: Cross-Platform Performance
+    runs-on: ${{ matrix.os }}
+    needs: cross-platform-build
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: binaries-${{ matrix.platform }}-*
+        path: artifacts/
+    
+    - name: Setup performance testing
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-utils
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+        fi
+    
+    - name: Run performance benchmarks
+      run: |
+        python3 scripts/cross_platform/run_performance_tests.py \
+          --platform ${{ matrix.platform }} \
+          --artifacts-dir artifacts/ \
+          --output performance_results_${{ matrix.platform }}.json
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results-${{ matrix.platform }}
+        path: performance_results_${{ matrix.platform }}.json
+
+  # Comprehensive Report Generation
+  generate-comprehensive-report:
+    name: Generate Comprehensive Report
+    runs-on: ubuntu-latest
+    needs: [platform-detection, cross-platform-build, dpi-scaling-tests, performance-comparison]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: all_artifacts/
+    
+    - name: Generate comprehensive report
+      run: |
+        python3 scripts/cross_platform/generate_comprehensive_report.py \
+          --artifacts-dir all_artifacts/ \
+          --output comprehensive_cross_platform_report.html
+    
+    - name: Upload comprehensive report
+      uses: actions/upload-artifact@v4
+      with:
+        name: comprehensive-cross-platform-report
+        path: |
+          comprehensive_cross_platform_report.html
+          comprehensive_cross_platform_report.json
+    
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('comprehensive_cross_platform_report.json')) {
+            const report = JSON.parse(fs.readFileSync('comprehensive_cross_platform_report.json', 'utf8'));
+            
+            const summary = report.summary;
+            const comment = `## 🔄 Cross-Platform Test Results
+            
+            **Overall Status:** ${summary.overall_success ? '✅ PASSED' : '❌ FAILED'}
+            
+            ### Platform Summary
+            - **Linux:** ${summary.platforms.linux.success ? '✅' : '❌'} (${summary.platforms.linux.passed_tests}/${summary.platforms.linux.total_tests} tests)
+            - **Windows:** ${summary.platforms.windows.success ? '✅' : '❌'} (${summary.platforms.windows.passed_tests}/${summary.platforms.windows.total_tests} tests)
+            - **macOS:** ${summary.platforms.macos.success ? '✅' : '❌'} (${summary.platforms.macos.passed_tests}/${summary.platforms.macos.total_tests} tests)
+            
+            ### Test Categories
+            - **GUI Compatibility:** ${summary.categories.gui_compatibility.success ? '✅' : '❌'}
+            - **Rendering Backend:** ${summary.categories.rendering_backend.success ? '✅' : '❌'}
+            - **DPI Scaling:** ${summary.categories.dpi_scaling.success ? '✅' : '❌'}
+            - **Performance:** ${summary.categories.performance.success ? '✅' : '❌'}
+            
+            [📊 View Detailed Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  # Nightly Integration Tests
+  nightly-integration:
+    name: Nightly Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Run extended cross-platform test suite
+      run: |
+        python3 scripts/cross_platform/build_and_test.py \
+          --source-dir . \
+          --output-dir nightly_results
+    
+    - name: Upload nightly results
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-cross-platform-results
+        path: nightly_results/
+    
+    - name: Notify on failure
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#ci-notifications'
+        text: 'Nightly cross-platform tests failed'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}

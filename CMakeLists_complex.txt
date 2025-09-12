@@ -1,0 +1,168 @@
+cmake_minimum_required(VERSION 3.22)
+project(ECScope 
+    VERSION 1.0.0
+    DESCRIPTION "ECScope: Integration Testing Build"
+    LANGUAGES CXX)
+
+# C++20 configuration
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Build type configuration
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+endif()
+
+# Compiler flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic
+        -Wconversion -Wshadow
+        -Wno-unused-parameter
+        -fno-omit-frame-pointer
+    )
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(-O0 -g3)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3 -DNDEBUG -march=native -mtune=native)
+    endif()
+endif()
+
+# Include directories
+include_directories(include)
+include_directories(include/ecscope)
+
+# Find required libraries
+find_package(Threads REQUIRED)
+
+# Core library with only existing sources
+add_library(ecscope_core
+    # ECS Core
+    src/ecs/archetype.cpp
+    src/ecs/query.cpp
+    src/ecs/registry.cpp
+    src/ecs/relationships.cpp
+    src/ecs/system.cpp
+    
+    # Core utilities
+    src/core/id.cpp
+    src/core/log.cpp
+    src/core/time.cpp
+    
+    # Memory management
+    src/memory/arena.cpp
+    src/memory/mem_tracker.cpp
+    src/memory/pool.cpp
+    src/memory/pool_allocator.cpp
+    src/memory/numa_manager.cpp
+    src/memory/bandwidth_analyzer.cpp
+    
+    # Job system
+    src/jobs/ecs_integration.cpp
+    src/jobs/fiber.cpp
+    src/jobs/fiber_job_system.cpp
+    src/jobs/fiber_sync.cpp
+    src/jobs/job_dependency_graph.cpp
+    src/jobs/job_profiler.cpp
+    
+    # Platform
+    src/platform/hardware_detection.cpp
+    
+    # Instrumentation
+    src/instrumentation/hooks.cpp
+    src/instrumentation/trace.cpp
+    
+    # Profiling
+    src/profiling/ecs_profiler.cpp
+)
+
+# Physics library
+add_library(ecscope_physics
+    src/physics/broadphase.cpp
+    src/physics/collision.cpp
+    src/physics/collision3d.cpp
+    src/physics/collision3d_algorithms.cpp
+    src/physics/components.cpp
+    src/physics/debug_renderer_2d.cpp
+    src/physics/math.cpp
+    src/physics/math3d.cpp
+    src/physics/narrowphase.cpp
+    src/physics/simd_math.cpp
+    src/physics/simd_math3d.cpp
+    src/physics/solver.cpp
+    src/physics/world.cpp
+    src/physics/world3d.cpp
+)
+
+# Networking library
+add_library(ecscope_networking
+    src/networking/network_buffer.cpp
+)
+
+# Combined library
+add_library(ecscope INTERFACE)
+target_link_libraries(ecscope INTERFACE ecscope_core ecscope_physics ecscope_networking)
+
+# Link libraries
+target_link_libraries(ecscope_core PUBLIC Threads::Threads)
+target_link_libraries(ecscope_physics PUBLIC ecscope_core)
+target_link_libraries(ecscope_networking PUBLIC ecscope_core)
+
+# Integration test executable
+add_executable(ecscope_integration_test
+    examples/integration_test.cpp
+)
+target_link_libraries(ecscope_integration_test ecscope)
+
+# Performance test executable
+add_executable(ecscope_performance_test
+    examples/performance_test.cpp
+)
+target_link_libraries(ecscope_performance_test ecscope)
+
+# Existing examples
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/main.cpp)
+    add_executable(ecscope_app src/app/main.cpp)
+    target_link_libraries(ecscope_app ecscope)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/main_minimal.cpp)
+    add_executable(ecscope_minimal src/app/main_minimal.cpp)
+    target_link_libraries(ecscope_minimal ecscope_core)
+endif()
+
+# Benchmark executables
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/memory_benchmarks.cpp)
+    add_executable(memory_benchmark benchmarks/memory_benchmarks.cpp)
+    target_link_libraries(memory_benchmark ecscope_core)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/physics_performance.cpp)
+    add_executable(physics_benchmark benchmarks/physics_performance.cpp)
+    target_link_libraries(physics_benchmark ecscope)
+endif()
+
+# Print configuration
+message(STATUS "═══════════════════════════════════════════════════════")
+message(STATUS "  ECScope Integration Test Build Configuration")
+message(STATUS "═══════════════════════════════════════════════════════")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "Platform: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "")
+message(STATUS "Components:")
+message(STATUS "  Core ECS: ✓")
+message(STATUS "  Physics: ✓")
+message(STATUS "  Networking: ✓")
+message(STATUS "  Memory Management: ✓")
+message(STATUS "  Job System: ✓")
+message(STATUS "")
+message(STATUS "Build Commands:")
+message(STATUS "  cmake --build . --parallel")
+message(STATUS "  ./ecscope_integration_test")
+message(STATUS "  ./ecscope_performance_test")
+message(STATUS "═══════════════════════════════════════════════════════")
