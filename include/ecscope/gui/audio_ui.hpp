@@ -31,26 +31,39 @@
 #ifdef ECSCOPE_HAS_IMGUI
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <implot.h>  // For audio visualization plots
+// Note: ImPlot not available, using custom plotting implementation
 #endif
 
-// ECScope includes
-#include "../audio/audio_system.hpp"
-#include "../audio/audio_3d.hpp"
-#include "../audio/spatial_audio.hpp"
-#include "../audio/audio_effects.hpp"
-#include "../audio/hrtf_processor.hpp"
-#include "../audio/ambisonics.hpp"
-#include "../audio/audio_raytracing.hpp"
-#include "../math.hpp"
+// ECScope includes (audio dependencies commented out for compilation)
+// #include "../audio/audio_system.hpp"
+// #include "../audio/audio_3d.hpp"
+// #include "../audio/spatial_audio.hpp"
+// #include "../audio/audio_effects.hpp"
+// #include "../audio/hrtf_processor.hpp"
+// #include "../audio/ambisonics.hpp"
+// #include "../audio/audio_raytracing.hpp"
+// #include "../math.hpp"
 #include "dashboard.hpp"
-#include "gui_widgets.hpp"
+// #include "gui_widgets.hpp"
 
 namespace ecscope::gui {
 
 // =============================================================================
-// FORWARD DECLARATIONS
+// FORWARD DECLARATIONS & MINIMAL TYPES
 // =============================================================================
+
+// Minimal Vector3f for compilation without math library
+struct Vector3f {
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    Vector3f() = default;
+    Vector3f(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
+};
+
+// Forward declarations for audio system types
+namespace audio {
+    class AudioSystem;
+    struct AudioMetrics {};
+}
 
 class Audio3DVisualizer;
 class AudioSpectrumAnalyzer;

@@ -1,0 +1,32 @@
+{
+  "platforms": [
+    {
+      "name": "@PLATFORM@",
+      "runner": "@CI_PLATFORM@",
+      "architecture": "@ARCHITECTURE@",
+      "compiler": "@CMAKE_CXX_COMPILER_ID@",
+      "build_types": ["Debug", "Release"],
+      "cmake_options": "@CMAKE_OPTIONS@",
+      "dependencies": "@DEPENDENCY_INSTALL_COMMANDS@",
+      "gui_support": @GUI_SUPPORT@,
+      "test_categories": [
+        "core",
+        "standalone",
+        "performance"
+      ]
+    }
+  ],
+  "test_matrix": {
+    "core_tests": [
+      "ecscope_standalone_test",
+      "ecscope_standalone_performance"
+    ],
+    "gui_tests": @GUI_TEST_LIST@,
+    "benchmark_tests": @BENCHMARK_TEST_LIST@
+  },
+  "build_configuration": {
+    "cmake_version_min": "3.22",
+    "cxx_standard": "20",
+    "parallel_jobs": "@PARALLEL_JOBS@"
+  }
+}

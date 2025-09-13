@@ -361,7 +361,7 @@ void NetworkUI::render_connection_details() {
     ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
     std::string window_title = "Connection Details - " + conn.name;
     
-    if (ImGui::Begin(window_title.c_str(), nullptr, ImGuiWindowFlags_NoDocking)) {
+    if (ImGui::Begin(window_title.c_str(), nullptr, ImGuiWindowFlags_None)) {
         ImGui::Text("Connection ID: %u", conn.id);
         ImGui::Text("Name: %s", conn.name.c_str());
         ImGui::Text("Address: %s:%d", conn.address.c_str(), conn.port);

@@ -60,19 +60,21 @@ if(ECSCOPE_BUILD_GUI)
     find_package(glfw3 QUIET)
     find_package(OpenGL QUIET)
     
-    # Check for ImGui (usually installed manually or via vcpkg)
-    find_path(IMGUI_INCLUDE_DIR NAMES imgui.h PATHS 
-        ${CMAKE_PREFIX_PATH}/include
-        /usr/local/include
-        /usr/include
-    )
+    # Check for ImGui (locally installed)
+    set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
+    if(EXISTS "${IMGUI_DIR}/imgui.h")
+        set(IMGUI_INCLUDE_DIR ${IMGUI_DIR})
+        set(IMGUI_FOUND TRUE)
+    else()
+        set(IMGUI_FOUND FALSE)
+    endif()
     
-    if(glfw3_FOUND AND OpenGL_FOUND AND IMGUI_INCLUDE_DIR)
+    if(glfw3_FOUND AND OpenGL_FOUND AND IMGUI_FOUND)
         set(ECSCOPE_HAS_GUI_DEPS TRUE)
         add_compile_definitions(ECSCOPE_HAS_GLFW ECSCOPE_HAS_OPENGL ECSCOPE_HAS_IMGUI)
     else()
         message(WARNING "GUI dependencies not found. GUI system will be disabled.")
-        message(STATUS "Missing: glfw3=${glfw3_FOUND}, OpenGL=${OpenGL_FOUND}, ImGui=${IMGUI_INCLUDE_DIR}")
+        message(STATUS "Missing: glfw3=${glfw3_FOUND}, OpenGL=${OpenGL_FOUND}, ImGui=${IMGUI_FOUND}")
         set(ECSCOPE_HAS_GUI_DEPS FALSE)
     endif()
 endif()
@@ -100,6 +102,14 @@ if(ECSCOPE_BUILD_GUI AND ECSCOPE_HAS_GUI_DEPS)
         src/gui/asset_pipeline_ui.cpp
         src/gui/debug_tools_ui.cpp
         src/gui/scripting_ui.cpp
+        # Dear ImGui sources
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
     )
     
     # Add responsive design system if enabled
@@ -113,6 +123,7 @@ if(ECSCOPE_BUILD_GUI AND ECSCOPE_HAS_GUI_DEPS)
     target_include_directories(ecscope_gui PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${IMGUI_INCLUDE_DIR}
+        ${IMGUI_DIR}/backends
     )
     
     target_link_libraries(ecscope_gui PUBLIC

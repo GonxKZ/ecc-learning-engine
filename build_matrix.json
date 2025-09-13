@@ -1,0 +1,32 @@
+{
+  "platforms": [
+    {
+      "name": "",
+      "runner": "",
+      "architecture": "",
+      "compiler": "GNU",
+      "build_types": ["Debug", "Release"],
+      "cmake_options": "",
+      "dependencies": "",
+      "gui_support": ,
+      "test_categories": [
+        "core",
+        "standalone",
+        "performance"
+      ]
+    }
+  ],
+  "test_matrix": {
+    "core_tests": [
+      "ecscope_standalone_test",
+      "ecscope_standalone_performance"
+    ],
+    "gui_tests": ,
+    "benchmark_tests": 
+  },
+  "build_configuration": {
+    "cmake_version_min": "3.22",
+    "cxx_standard": "20",
+    "parallel_jobs": ""
+  }
+}

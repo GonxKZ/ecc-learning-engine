@@ -118,8 +118,10 @@ namespace test_ecs {
             
             if (it == component_arrays_.end()) {
                 auto* array = new ComponentArray<T>();
-                component_arrays_[type_index] = std::unique_ptr<void, void(*)(void*)>(
-                    array, [](void* ptr) { delete static_cast<ComponentArray<T>*>(ptr); }
+                auto deleter = [](void* ptr) { delete static_cast<ComponentArray<T>*>(ptr); };
+                auto result = component_arrays_.emplace(
+                    type_index, 
+                    std::unique_ptr<void, void(*)(void*)>(array, deleter)
                 );
                 return *array;
             }

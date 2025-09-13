@@ -238,7 +238,7 @@ private:
                           [](double a, double b) { return a * b + std::sin(a) * std::cos(b); });
             
             // Vector reduction
-            volatile double sum = std::accumulate(result_vec.begin(), result_vec.end(), 0.0);
+            [[maybe_unused]] volatile double sum = std::accumulate(result_vec.begin(), result_vec.end(), 0.0);
         }
         
         double elapsed = timer.elapsed_ms();
@@ -360,7 +360,7 @@ private:
             futures.push_back(std::async(std::launch::async, [&mtx, &shared_counter, operations, thread_count]() {
                 for (size_t i = 0; i < operations / thread_count; ++i) {
                     std::lock_guard<std::mutex> lock(mtx);
-                    shared_counter++;
+                    ++shared_counter;
                 }
             }));
         }

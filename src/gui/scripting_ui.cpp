@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <random>
 #include <iomanip>
+#include <cstring>
 
 #ifdef ECSCOPE_HAS_IMGUI
 #include <imgui.h>
@@ -625,10 +626,23 @@ void ScriptConsole::render_input_line() {
     ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue | 
                                      ImGuiInputTextFlags_CallbackHistory;
     
-    if (ImGui::InputText("##console_input", &current_command_, input_flags)) {
+    // Create buffer for ImGui input (imgui_stdlib.h not available)
+    static char input_buffer[256] = "";
+    if (current_command_.size() < sizeof(input_buffer) - 1) {
+        strcpy(input_buffer, current_command_.c_str());
+    }
+    
+    if (ImGui::InputText("##console_input", input_buffer, sizeof(input_buffer), input_flags)) {
+        current_command_ = input_buffer;
         execute_command(current_command_);
         current_command_.clear();
+        input_buffer[0] = '\0';
         reclaim_focus = true;
+    }
+    
+    // Update current_command_ if user is typing
+    if (strlen(input_buffer) != current_command_.size() || strcmp(input_buffer, current_command_.c_str()) != 0) {
+        current_command_ = input_buffer;
     }
     
     ImGui::SetItemDefaultFocus();

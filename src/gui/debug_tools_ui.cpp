@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fstream>
 #include <regex>
+#include <set>
 
 #ifdef _WIN32
 #include <windows.h>

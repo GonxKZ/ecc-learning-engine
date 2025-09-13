@@ -31,7 +31,7 @@
 #endif
 
 #ifdef ECSCOPE_HAS_OPENGL
-#include <GL/gl3w.h>
+#include <GL/gl.h>
 #endif
 
 namespace ecscope::examples {
@@ -81,11 +81,7 @@ public:
         glfwSwapInterval(1); // Enable vsync
         
 #ifdef ECSCOPE_HAS_OPENGL
-        // Initialize OpenGL loader
-        if (gl3wInit() != 0) {
-            ecscope::core::Log::error("Failed to initialize OpenGL loader");
-            return false;
-        }
+        // OpenGL context is ready (no loader needed with standard OpenGL headers)
 #endif
 
         // Setup Dear ImGui context
@@ -94,18 +90,15 @@ public:
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+        // Docking and viewports not available in this ImGui version
+        // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+        // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
 
         // Setup Dear ImGui style
         ImGui::StyleColorsDark();
 
-        // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-        ImGuiStyle& style = ImGui::GetStyle();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            style.WindowRounding = 0.0f;
-            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-        }
+        // Viewport tweaks not needed in this ImGui version
+        // ImGuiStyle& style = ImGui::GetStyle();
 
         // Setup Platform/Renderer backends
         ImGui_ImplGlfw_InitForOpenGL(window_, true);
@@ -170,12 +163,7 @@ public:
 
             // Update and Render additional Platform Windows
             ImGuiIO& io = ImGui::GetIO();
-            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-                GLFWwindow* backup_current_context = glfwGetCurrentContext();
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault();
-                glfwMakeContextCurrent(backup_current_context);
-            }
+            // Multi-viewport not available in this ImGui version
 
             glfwSwapBuffers(window_);
         }

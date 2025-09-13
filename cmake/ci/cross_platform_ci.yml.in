@@ -1,0 +1,65 @@
+# ECScope Cross-Platform CI Configuration Template
+name: ECScope-CI-@PLATFORM@
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  BUILD_TYPE: @CMAKE_BUILD_TYPE@
+  PLATFORM: @PLATFORM@
+  ARCHITECTURE: @ARCHITECTURE@
+
+jobs:
+  build-and-test:
+    runs-on: @CI_PLATFORM@
+    
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+        
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configure Environment
+      run: |
+        echo "Configuring environment for @PLATFORM@"
+        echo "Architecture: @ARCHITECTURE@"
+        echo "Build Type: ${{ matrix.configuration }}"
+    
+    - name: Install Dependencies
+      run: |
+        @DEPENDENCY_INSTALL_COMMANDS@
+        
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} @CMAKE_OPTIONS@
+        
+    - name: Build
+      run: |
+        cmake --build build --config ${{ matrix.configuration }} --parallel
+        
+    - name: Test Core
+      run: |
+        cd build
+        ctest --output-on-failure -C ${{ matrix.configuration }}
+        
+    - name: Test Standalone
+      run: |
+        cd build
+        ./ecscope_standalone_test
+        ./ecscope_standalone_performance
+        
+    @GUI_TESTS@
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-@PLATFORM@-${{ matrix.configuration }}
+        path: |
+          build/Testing/
+          build/*.log
+          build/test-results.xml
